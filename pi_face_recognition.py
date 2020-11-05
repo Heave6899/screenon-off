@@ -3,21 +3,25 @@
 
 # import the necessary packages
 import sys
-if sys.platform.startswith('win'):
+import select
+if sys.platform.startswith("win"):
     import win32gui
     import win32con
     from os import getpid, system
     from threading import Timer
 
 import multiprocessing
+
 try:
     from picamera.array import PiRGBArray
+
     print("module 'picamera' is installed")
 except ModuleNotFoundError:
     print("module 'picamera' is not installed")
 
 try:
     from picamera import PiCamera
+
     print("module 'picamera' is installed")
 except ModuleNotFoundError:
     print("module 'picamera' is not installed")
@@ -29,6 +33,7 @@ import pickle
 import time
 import cv2
 import subprocess
+
 # import paho.mqtt.client as mqtt
 
 # def on_connect(client, userdata, flags, rc):
@@ -52,12 +57,13 @@ import subprocess
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-c", "--cascade", required=True,
-    help = "path to where the face cascade resides")
-ap.add_argument("-e", "--encodings", required=True,
-    help="path to serialized db of facial encodings")
-ap.add_argument("-i", "--idhash", required=True,
-    help="id of person")
+ap.add_argument(
+    "-c", "--cascade", required=True, help="path to where the face cascade resides"
+)
+ap.add_argument(
+    "-e", "--encodings", required=True, help="path to serialized db of facial encodings"
+)
+ap.add_argument("-i", "--idhash", required=True, help="id of person")
 args = vars(ap.parse_args())
 
 # load the known faces and embeddings along with OpenCV's Haar
@@ -71,34 +77,91 @@ print("[INFO] starting video stream...")
 # vs = VideoStream(src=0).start()
 # vs = VideoStream(usePiCamera=True).start()
 def force_exit():
-                    pid = getpid()
-                    system('taskkill /pid %s /f' % pid)
+    pid = getpid()
+    system("taskkill /pid %s /f" % pid)
 
-def run(): 
+pincode = args["encodings"]
+pincode = pincode.split("^")
+pincode = pincode[1]
+print(type(pincode))
+
+flagpin = 1
+
+def pin():
+    global flagpin
+    global t1
+    global flag
     while True:
-        if sys.platform.startswith('linux'):
-            s = str(subprocess.check_output("xset -q",shell=True))
+        if flagpin == 0:
+            print("Please enter pin")
+            m, n, o = select.select( [sys.stdin], [], [], 10 )
+            if (m):
+                x = sys.stdin.readline().strip()
+                if x == pincode:
+                    stopping()
+                    flagpin = 1
+                    return
+                else:
+                    if not t1.is_alive():
+                        flag = 1
+                        t1 = multiprocessing.Process(
+                                target=run,
+                            )
+                        t1.start()
+                        return 
+                    return
+            else:
+                if not t1.is_alive():
+                    flag = 1
+                    t1 = multiprocessing.Process(
+                            target=run,
+                        )
+                    t1.start()
+                    return 
+                return
+
+def stopping():
+    print(type(t1))
+    t1.terminate()
+    print("TERMINATED:", t1, t1.is_alive())
+    t1.join()
+    print("JOINED:", t1, t1.is_alive())
+    if sys.platform.startswith("linux"):
+        subprocess.call(["xset", "-display", ":0", "dpms", "force", "on"])
+def run():
+    while True:
+        if sys.platform.startswith("linux"):
+            s = str(subprocess.check_output("xset -q", shell=True))
             if "Monitor is On" in s:
                 subprocess.call("xset -display :0.0 dpms force off", shell=True)
-        elif sys.platform.startswith('win'):
-            s = str(os.system('cmd /k "wmic path win32_desktopmonitor GET Availability,Caption"'))
-            if '8' in s:
+        elif sys.platform.startswith("win"):
+            s = str(
+                os.system(
+                    'cmd /k "wmic path win32_desktopmonitor GET Availability,Caption"'
+                )
+            )
+            if "8" in s:
                 t = Timer(1, force_exit)
                 t.start()
                 SC_MONITORPOWER = 0xF170
-                win32gui.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SYSCOMMAND, SC_MONITORPOWER, 2)
+                win32gui.SendMessage(
+                    win32con.HWND_BROADCAST, win32con.WM_SYSCOMMAND, SC_MONITORPOWER, 2
+                )
                 t.cancel()
-        elif sys.platform.startswith('darwin'):
-            subprocess.call('echo \'tell application "Finder" to sleep\' | osascript', shell=True)
-        
+        elif sys.platform.startswith("darwin"):
+            subprocess.call(
+                "echo 'tell application \"Finder\" to sleep' | osascript", shell=True
+            )
+
         print("Thread running")
         time.sleep(0.5)
 
-if 'picamera' in sys.modules:
+
+if "picamera" in sys.modules:
     camera = PiCamera()
-    camera.resolution = (300,300)
-    #camera.framerate = 3
-    rawCapture = PiRGBArray(camera,size=(300,300))
+    camera.resolution = (300, 300)
+    # camera.framerate = 3
+    rawCapture = PiRGBArray(camera, size=(300, 300))
     time.sleep(2.0)
 
     # start the FPS counter
@@ -107,14 +170,16 @@ if 'picamera' in sys.modules:
 
     # loop over frames from the video file stream
     # while True:
-        # grab the frame from the threaded video stream and resize it
-        # to 500px (to speedup processing)
-        
-        # frame = vs.read()
-        # frame = imutils.resize(frame, width=500)
-    i=0
-    flag=0
-    for image in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+    # grab the frame from the threaded video stream and resize it
+    # to 500px (to speedup processing)
+
+    # frame = vs.read()
+    # frame = imutils.resize(frame, width=500)
+    i = 0
+    flag = 0
+    for image in camera.capture_continuous(
+        rawCapture, format="bgr", use_video_port=True
+    ):
         frame = image.array
 
         # convert the input frame from (1) BGR to grayscale (for face
@@ -123,30 +188,36 @@ if 'picamera' in sys.modules:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # detect faces in the grayscale frame
-        rects = detector.detectMultiScale(gray, scaleFactor=1.1, 
-            minNeighbors=5, minSize=(30, 30),
-            flags=cv2.CASCADE_SCALE_IMAGE)
+        rects = detector.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(30, 30),
+            flags=cv2.CASCADE_SCALE_IMAGE,
+        )
 
-        if len(rects)==0:
-            j=j+1
+        if len(rects) == 0:
+            j = j + 1
             print(j)
-            if j==7:
-                flag=1  
-                #client.publish("iotscreenoff/monitor","OFF, Flag = 0")
-                t1 = multiprocessing.Process(target=run,) 
-                t1.start() 				
+            if j == 7:
+                flag = 1
+                # client.publish("iotscreenoff/monitor","OFF, Flag = 0")
+                t1 = multiprocessing.Process(
+                    target=run,
+                )
+                t1.start()
         else:
-            j=0
-            print("Restart",str(j))
-            if flag==1:
-            #subprocess.call(["xset", "-display",":0","dpms","force","on"])
-                flag=0
+            j = 0
+            print("Restart", str(j))
+            if flag == 1:
+                # subprocess.call(["xset", "-display",":0","dpms","force","on"])
+                flag = 0
                 print(type(t1))
                 t1.terminate()
-                print('TERMINATED:', t1, t1.is_alive())
+                print("TERMINATED:", t1, t1.is_alive())
                 t1.join()
-                print('JOINED:', t1, t1.is_alive())
-                subprocess.call(["xset","-display",":0","dpms","force","on"])
+                print("JOINED:", t1, t1.is_alive())
+                subprocess.call(["xset", "-display", ":0", "dpms", "force", "on"])
 
         # OpenCV returns bounding box coordinates in (x, y, w, h) order
         # but we need them in (top, right, bottom, left) order, so we
@@ -161,8 +232,7 @@ if 'picamera' in sys.modules:
         for encoding in encodings:
             # attempt to match each face in the input image to our known
             # encodings
-            matches = face_recognition.compare_faces(data["encodings"],
-                encoding)
+            matches = face_recognition.compare_faces(data["encodings"], encoding)
             name = "Unknown"
 
             # check to see if we have found a match
@@ -183,23 +253,19 @@ if 'picamera' in sys.modules:
                 # of votes (note: in the event of an unlikely tie Python
                 # will select first entry in the dictionary)
                 name = max(counts, key=counts.get)
-            
+
             # update the list of names
             names.append(name)
 
         # loop over the recognized faces
         for ((top, right, bottom, left), name) in zip(boxes, names):
             # draw the predicted face name on the image
-            cv2.rectangle(frame, (left, top), (right, bottom),
-                (0, 255, 0), 2)
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
             y = top - 15 if top - 15 > 15 else top + 15
-            cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
-                0.75, (0, 255, 0), 2)
+            cv2.putText(
+                frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2
+            )
 
-        
-                
-        
-        
         # display the image to our screen
         cv2.imshow("Frame", frame)
         key = cv2.waitKey(1) & 0xFF
@@ -219,20 +285,20 @@ if 'picamera' in sys.modules:
 
     # do a bit of cleanup
     cv2.destroyAllWindows()
-if 'picamera' not in sys.modules:
-    j=0
+if "picamera" not in sys.modules:
+    j = 0
     flag = 0
     t1 = 0
     while True:
         camera = cv2.VideoCapture(0)
         framerate = camera.get(5)
-        #camera.resolution = (300,300)
-        #camera.framerate = 3
+        # camera.resolution = (300,300)
+        # camera.framerate = 3
         ret, frame = camera.read()
         camera.release()
         time.sleep(0.7)
 
-        #frame = frame.array
+        # frame = frame.array
 
         # convert the input frame from (1) BGR to grayscale (for face
         # detection) and (2) from BGR to RGB (for face recognition)
@@ -240,11 +306,13 @@ if 'picamera' not in sys.modules:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # detect faces in the grayscale frame
-        rects = detector.detectMultiScale(gray, scaleFactor=1.1, 
-            minNeighbors=5, minSize=(30, 30),
-            flags=cv2.CASCADE_SCALE_IMAGE)
-
-        
+        rects = detector.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(30, 30),
+            flags=cv2.CASCADE_SCALE_IMAGE,
+        )
 
         # OpenCV returns bounding box coordinates in (x, y, w, h) order
         # but we need them in (top, right, bottom, left) order, so we
@@ -259,8 +327,7 @@ if 'picamera' not in sys.modules:
         for encoding in encodings:
             # attempt to match each face in the input image to our known
             # encodings
-            matches = face_recognition.compare_faces(data["encodings"],
-                encoding)
+            matches = face_recognition.compare_faces(data["encodings"], encoding)
             name = "Unknown"
 
             # check to see if we have found a match
@@ -281,43 +348,42 @@ if 'picamera' not in sys.modules:
                 # of votes (note: in the event of an unlikely tie Python
                 # will select first entry in the dictionary)
                 name = max(counts, key=counts.get)
-            
+
             # update the list of names
             names.append(name)
         print(names)
 
-        if len(rects)==0 or args["idhash"] not in names:
-            j=j+1
+        if len(rects) == 0 or args["idhash"] not in names:
+            j = j + 1
             print(j)
-            if j==10:
-                flag=1  
-                #client.publish("iotscreenoff/monitor","OFF, Flag = 0")
-                t1 = multiprocessing.Process(target=run,) 
-                t1.start() 				
+            if j == 10:
+                flag = 1
+                # client.publish("iotscreenoff/monitor","OFF, Flag = 0")
+                t1 = multiprocessing.Process(
+                    target=run,
+                )
+                t1.start()
         else:
-            j=0
-            print("Restart",str(j))
-            if flag==1:
-            #subprocess.call(["xset", "-display",":0","dpms","force","on"])
-                flag=0
-                print(type(t1))
-                t1.terminate()
-                print('TERMINATED:', t1, t1.is_alive())
-                t1.join()
-                print('JOINED:', t1, t1.is_alive())
-                if sys.platform.startswith('linux'):
-                    subprocess.call(["xset","-display",":0","dpms","force","on"])
-
-
+            j = 0
+            print("Restart", str(j))
+            if flag == 1:
+                # subprocess.call(["xset", "-display",":0","dpms","force","on"])
+                flag = 0
+                stopping()
+                flagpin = 0
+                # t2 = multiprocessing.Process(target=pin,)
+                # t2.start()
+                pin()
+                
         # loop over the recognized faces
         for ((top, right, bottom, left), name) in zip(boxes, names):
             # draw the predicted face name on the image
-            cv2.rectangle(frame, (left, top), (right, bottom),
-                (0, 255, 0), 2)
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
             y = top - 15 if top - 15 > 15 else top + 15
-            cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
-                0.75, (0, 255, 0), 2)		
-        
+            cv2.putText(
+                frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2
+            )
+
         # display the image to our screen
         cv2.imshow("Frame", frame)
         key = cv2.waitKey(1) & 0xFF
@@ -331,4 +397,4 @@ if 'picamera' not in sys.modules:
         time.sleep(1)
 
     cv2.destroyAllWindows()
-#vs.stop()
+# vs.stop()

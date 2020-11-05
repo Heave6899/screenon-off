@@ -1,0 +1,59 @@
+<script
+    src="https://code.jquery.com/jquery-3.1.1.min.js"
+    crossorigin="anonymous"
+  ></script>
+<div id="container">
+    <h1>Start a Session for <p id="email">{% if email %}
+        {{ email }}
+      {% endif %}</p>? </h1>
+    <br>
+    <div id="content">
+      <input type="button" onClick="session(0);" value="Start Session" id="start">
+      <input type="button" onClick="session(1);" value="Stop Session" disabled id="stop">
+    <form method="POST" action={{url_for('checkpin')}}>
+      <p id = "befr">Please enter the pin to start the session!</p>
+      <p id = "aftr" hidden="hidden">Please enter the pin to verify user, you have 10 seconds!</p>
+      <p id = "err" hidden="hidden">Error, No pin found! Please enter the pin to start session!</p>
+      <input type="password" placeholder="enter pin" id="pin">
+      <input type="button" onClick="pinchecker();" value="Enter Pin">
+    </form>
+    </div>
+  </div>
+  <script language="JavaScript">
+   
+    function session(x){
+          var user = document.getElementById("email").innerText;
+          var pin = document.getElementById("pin").value;
+          if (pin == ""){
+            document.getElementById("befr").hidden = "hidden";
+            document.getElementById("err").hidden = "";
+          }
+          else{
+          $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+          $.getJSON($SCRIPT_ROOT + '/_start_session', {
+                type: x,
+                name: user,
+                pin: pin
+            },function(data){
+
+            });
+            if (x=='0')
+            {
+              document.getElementById('start').disabled = "disabled";
+              document.getElementById('stop').disabled = "";
+              document.getElementById("err").hidden = "hidden";
+            document.getElementById("befr").hidden = "hidden";
+            document.getElementById("aftr").hidden = "";
+              document.getElementById('pin').disabled = "";
+            }
+          }
+        }
+  function pinchecker(){
+    $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+    var pin = document.getElementById("pin").value;
+    document.getElementById("pin").value = "";
+          $.getJSON($SCRIPT_ROOT + '/checkpin', {
+            pin:pin
+            });
+  }
+  </script>

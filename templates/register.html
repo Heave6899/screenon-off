@@ -1,37 +1,155 @@
-<!DOCTYPE html>
-<html>
-  <head lang="en">
-    <meta charset="UTF-8">
-    <title>Flask React</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- styles -->
-  </head>
-  <body>
-    <script
+<div id="my_photo_booth">
+  <div id="my_camera"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/webcamjs/1.0.26/webcam.min.js"></script>
+  <script
     src="https://code.jquery.com/jquery-3.1.1.min.js"
     crossorigin="anonymous"
   ></script>
-    <div class="container">
-      <h1>Start a Session?</h1>
-      <br>
-      <div id="content">
-        <input type="button" onClick="session(0);" value="Start Session">
-        <input type="button" onClick="session(1);" value="Stop Session">
-      </div>
+  <!-- Configure a few settings and attach camera -->
+  <script language="JavaScript">
+    Webcam.set({
+      // live preview size
+      width: 320,
+      height: 240,
+
+      // device capture size
+      dest_width: 640,
+      dest_height: 480,
+
+      // final cropped size
+      crop_width: 480,
+      crop_height: 480,
+
+      // format and quality
+      image_format: "jpeg",
+      jpeg_quality: 90,
+
+      // flip horizontal (mirror mode)
+      flip_horiz: true,
+    });
+    Webcam.attach("#my_camera");
+  </script>
+
+  <br />
+  <div id="results" style="display: none">
+    <!-- Your captured image will appear here... -->
+  </div>
+
+  <!-- A button for taking snaps -->
+  
+  <form>
+    <div id="pre_take_buttons">
+      <!-- This button is shown before the user takes a snapshot -->
+      <input
+        type="button"
+        class="btn btn-success btn-squared"
+        value="CAPTURE"
+        onClick="preview_snapshot()"
+      />
     </div>
-    <!-- scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.1.0/react.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.1.0/react-dom.min.js"></script>
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/react/0.13.3/JSXTransformer.js"></script>
-    <script>
-      function session(x){
-        $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
-        $.getJSON($SCRIPT_ROOT + '/_start_session', {
-              type: x,
+
+    <div id="post_take_buttons" style="display: none">
+      <!-- These buttons are shown after a snapshot is taken -->
+      <input
+        type="button"
+        class="btn btn-danger btn-squared responsive-width"
+        value="&lt; AGAIN"
+        onClick="cancel_preview()"
+      />
+      <input
+        type="button"
+        class="btn btn-success btn-squared responsive-width"
+        value="SAVE &gt;"
+        onClick="save_photo()"
+        style="font-weight: bold"
+      />
+    </div>
+    <div id="countrem">Remaining snapshots: 15</div>
+    <input type="email" placeholder="enter email" name = "mail" id="mail">
+    <div id="register" style="display: none">
+      <!-- These buttons are shown after a snapshot is taken -->
+      <input
+        type="button"
+        class="btn btn-danger btn-squared responsive-width"
+        value="&lt; REGISTER FACE"
+        onClick="register()"
+      />
+    </div>
+  </form>
+</div>
+<div id="reg" style="display: none">
+  <input type="text"  name="pincode" maxlength="4"  id="pin" pattern="\d{4}" required/>
+    <input
+    type="button"
+    class="btn btn-danger btn-squared responsive-width"
+    value="&lt; REGISTER FACE"
+    onClick="register()"
+  />
+</div>
+
+<script language="JavaScript">
+  // preload shutter audio clip
+
+  function preview_snapshot() {
+
+      // freeze camera so user can preview current frame
+      Webcam.freeze();
+
+      // swap button sets
+      document.getElementById('pre_take_buttons').style.display = 'none';
+      document.getElementById('post_take_buttons').style.display = '';
+  }
+
+  function cancel_preview() {
+      // cancel preview freeze and return to live camera view
+      Webcam.unfreeze();
+
+      // swap buttons back to first set
+      document.getElementById('pre_take_buttons').style.display = '';
+      document.getElementById('post_take_buttons').style.display = 'none';
+  }
+  var count = 0;
+  function save_photo() {
+      // actually snap photo (from preview freeze).
+      Webcam.snap( function(data_uri) {
+          // display results in page
+          $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+          // shut down camera, stop capturing
+          var username = document.getElementById("mail").value;
+          document.getElementById("mail").disabled = "true";
+          $.getJSON($SCRIPT_ROOT + '/_photo_cap', {
+              photo_cap: data_uri,
+              photo_name: count,
+              user: username
           },function(data){
               var response = data.response;
           });
+      });
+      count++;
+      console.log(count)
+      if(count < 15){
+        Webcam.unfreeze();        
+        document.getElementById('countrem').innerHTML = "Remaining snapshots: "+(15-count);
+        document.getElementById('pre_take_buttons').style.display = '';
+        document.getElementById('post_take_buttons').style.display = 'none';      
+
       }
-    </script>
-  </body>
-</html>
+      else{
+          Webcam.reset();
+          document.getElementById('countrem').innerHTML = "Remaining snapshots: "+0;
+          document.getElementById('reg').style.display = '';
+        document.getElementById('my_photo_booth').style.display = 'none';
+      }
+    }
+  
+  function register(){
+    var mail = document.getElementById("mail").value;
+    var pin = document.getElementById("pin").value;
+        $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+    $.getJSON($SCRIPT_ROOT + '/_registerface',{
+      name : mail,
+      pin : pin
+    },function(data){});
+  }
+</script>

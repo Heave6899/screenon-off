@@ -48,31 +48,56 @@ def photo_cap():
         #os.system("python ")
     return jsonify(response=response)
 
-@app.route('/registerface')
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/checkmail',methods=['POST'])
+def checkmail():
+    mail = request.form['mail']
+    print(mail)
+    if path.exists(os.getcwd() + "/dataset/" + mail):
+        return render_template('start.html',email = mail)
+    else:
+        return render_template('register.html')
+
+@app.route('/_registerface')
 def registerface():
+    name = request.args.get('name')
+    pin = request.args.get('pin')
     print("encoding started")
     time.sleep(0.2)
-    if path.exists('encoding.pickle'):
-        os.remove('encoding.pickle')
     time.sleep(0.3)
-    p = subprocess.Popen(['python', 'encode_faces.py', '-i', 'dataset','-e','encoding.pickle','-d','hog'])
+    filename = str(name) + "^" + str(pin)
+    path = os.getcwd() + "/dataset/" + str(name) + "/"
+    p = subprocess.Popen(['python', 'encode_faces.py', '-i', path,'-e',filename,'-d','hog'])
     (output, err) = p.communicate()  
     p_status = p.wait()
     p.terminate()
     return ('', 204)
 
 p = 0
-
 @app.route('/_start_session')
 def startsession():
     global p
     string = request.args.get('type')
     name = request.args.get('name')
+    pin = request.args.get('pin')
+    print(string,name,pin)
+    filename = str(name) + "^" + str(pin)
+    path = os.getcwd() + "/dataset/" + str(name) + "/" + filename 
     if string == '0':
-        p = subprocess.Popen(['python', 'pi_face_recognition.py', '-c', 'haarcascade_frontalface_default.xml','-e','encoding.pickle','-i',name])
-        return ('', 204)
+        p = subprocess.Popen(['python', 'pi_face_recognition.py', '-c', 'haarcascade_frontalface_default.xml','-e',path,'-i',name],stdin=subprocess.PIPE)
+        return ""
     if string == '1':
         p.terminate()
-        return ('', 204)
+        return ""
 
+@app.route('/checkpin')
+def checkpin():
+    print(type(p))
+    pin = request.args.get('pin')
+    pin = str.encode(pin)
+    p.communicate(input=pin)
+    return ""
 app.run()
