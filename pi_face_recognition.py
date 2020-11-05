@@ -98,7 +98,8 @@ def pin():
             if (m):
                 x = sys.stdin.readline().strip()
                 if x == pincode:
-                    stopping()
+                    if t1.is_alive():
+                        stopping()
                     flagpin = 1
                     return
                 else:

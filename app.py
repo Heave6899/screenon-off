@@ -10,18 +10,6 @@ import time
 
 app = Flask(__name__)
 
-
-@app.route("/test")
-def test():
-    db.db.collection.insert_one({"name": "John"})
-    return "Connected to the data base!"
-
-
-@app.route('/photo')
-def photo():
-    return render_template('index.html')
-
-
 @app.route('/_photo_cap')
 def photo_cap():
     photo_base64 = request.args.get('photo_cap')
@@ -70,7 +58,7 @@ def registerface():
     time.sleep(0.3)
     filename = str(name) + "^" + str(pin)
     path = os.getcwd() + "/dataset/" + str(name) + "/"
-    p = subprocess.Popen(['python', 'encode_faces.py', '-i', path,'-e',filename,'-d','hog'])
+    p = subprocess.Popen(['python', 'encode_faces.py', '-i', path,'-e',path + filename,'-d','hog'])
     (output, err) = p.communicate()  
     p_status = p.wait()
     p.terminate()
