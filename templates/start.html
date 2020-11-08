@@ -1,59 +1,85 @@
-<script
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/bootstrap.min.css') }}"
+    />
+  </head>
+  <script
     src="https://code.jquery.com/jquery-3.1.1.min.js"
     crossorigin="anonymous"
   ></script>
-<div id="container">
-    <h1>Start a Session for <p id="email">{% if email %}
-        {{ email }}
-      {% endif %}</p>? </h1>
-    <br>
-    <div id="content">
-      <input type="button" onClick="session(0);" value="Start Session" id="start">
-      <input type="button" onClick="session(1);" value="Stop Session" disabled id="stop">
-    <form method="POST" action={{url_for('checkpin')}}>
-      <p id = "befr">Please enter the pin to start the session!</p>
-      <p id = "aftr" hidden="hidden">Please enter the pin to verify user, you have 10 seconds!</p>
-      <p id = "err" hidden="hidden">Error, No pin found! Please enter the pin to start session!</p>
-      <input type="password" placeholder="enter pin" id="pin">
-      <input type="button" onClick="pinchecker();" value="Enter Pin">
-    </form>
+  <nav class="navbar navbar-light bg-light">
+    <span class="navbar-brand mb-0 h1">This is a Demo of the Screen Automated Turn on/off system by Vansh Patel, Dr. Ankit Thakkar</div></span>
+  </nav>
+  <div class="container align-middle" style="margin-top: 10%">
+    <div class="row">
+      <div class="col">
+        <h1>
+          Start a Session for <small class="text-muted" id="email">{% if email %} {{ email }} {% endif %}</small>
+        </h1>
+        <br />
+        <div id="content">
+          <p id="mes"></p>
+          <form>
+            <input type="button" disabled class="form-control btn btn-primary" onClick="session(0);" value="Start Session" id="start"/>
+            
+              <div class="form-group">
+                <label for="disabledTextInput">Enter Pin</label>
+                <input type="password" maxlength="4" pattern="\d{4}" id="pin" class="form-control" placeholder="Enter Pin">
+              </div>
+            <input type="button" class="form-control btn btn-primary" onClick="pinchecker();" value="Check Pin" />
+          </form>
+        </div>
+      </div>
+      <div class="col">
+        <h4>Instructions</h4>
+        <ol>
+          <li>To start the session, please enter the PIN once again to confirm session. Then click on CHECK PIN to verify the pin.</li>
+          <li>If the pin is correct, the Start session button will be enabled and you can then click on it to start the session.</li>
+          <li>Do not reload the webpage else you will have to start over.</li>
+        </ol>
+        </div>
     </div>
   </div>
   <script language="JavaScript">
-   
-    function session(x){
-          var user = document.getElementById("email").innerText;
-          var pin = document.getElementById("pin").value;
-          if (pin == ""){
-            document.getElementById("befr").hidden = "hidden";
-            document.getElementById("err").hidden = "";
-          }
-          else{
-          $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
-          $.getJSON($SCRIPT_ROOT + '/_start_session', {
-                type: x,
-                name: user,
-                pin: pin
-            },function(data){
 
-            });
-            if (x=='0')
-            {
-              document.getElementById('start').disabled = "disabled";
-              document.getElementById('stop').disabled = "";
-              document.getElementById("err").hidden = "hidden";
-            document.getElementById("befr").hidden = "hidden";
-            document.getElementById("aftr").hidden = "";
-              document.getElementById('pin').disabled = "";
+      function session(x){
+            var user = document.getElementById("email").innerText;
+            var pin = document.getElementById("pin").value;
+
+
+            $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+            $.getJSON($SCRIPT_ROOT + '/_start_session', {
+                  type: x,
+                  name: user,
+                  pin: pin
+              },function(data){
+                if(data.url != undefined)
+                  window.location.replace(data.url);
+              });
+
             }
-          }
-        }
-  function pinchecker(){
-    $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
-    var pin = document.getElementById("pin").value;
-    document.getElementById("pin").value = "";
-          $.getJSON($SCRIPT_ROOT + '/checkpin', {
-            pin:pin
+
+    function pinchecker(){
+      $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+      var pin = document.getElementById("pin").value;
+      var user = document.getElementById("email").innerText;
+            $.getJSON($SCRIPT_ROOT + '/_startingpin', {
+              pin:pin,
+              mail : user
+              },function(data){
+                var response = data.response;
+                var correct = data.correct;
+                console.log(response)
+                if(correct == '1')
+                {
+                  document.getElementById('mes').innerText = data.response
+                  document.getElementById('start').disabled = "";
+                }
+                if(correct == '0')
+                document.getElementById('mes').innerText = data.response
             });
-  }
+    }
   </script>
+</html>

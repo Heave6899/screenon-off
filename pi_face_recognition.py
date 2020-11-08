@@ -68,12 +68,10 @@ args = vars(ap.parse_args())
 
 # load the known faces and embeddings along with OpenCV's Haar
 # cascade for face detection
-print("[INFO] loading encodings + face detector...")
 data = pickle.loads(open(args["encodings"], "rb").read())
 detector = cv2.CascadeClassifier(args["cascade"])
 
 # initialize the video stream and allow the camera sensor to warm up
-print("[INFO] starting video stream...")
 # vs = VideoStream(src=0).start()
 # vs = VideoStream(usePiCamera=True).start()
 def force_exit():
@@ -83,24 +81,38 @@ def force_exit():
 pincode = args["encodings"]
 pincode = pincode.split("^")
 pincode = pincode[1]
-print(type(pincode))
-
 flagpin = 1
-
+count = 0
 def pin():
     global flagpin
     global t1
     global flag
+    global count
+    global corbool
+    if count == 3:
+        exit()
     while True:
         if flagpin == 0:
             print("Please enter pin")
-            m, n, o = select.select( [sys.stdin], [], [], 10 )
-            if (m):
-                x = sys.stdin.readline().strip()
-                if x == pincode:
+            time.sleep(10)
+            #m, n, o = select.select( [sys.stdin], [], [], 20 )
+            #------------------
+            f = open("pin", "rb")
+            m = f.readline()
+            m = m.decode()
+            #------------------
+            if (m != ''):
+                if pincode in m:
                     if t1.is_alive():
                         stopping()
                     flagpin = 1
+                    count = 0
+                    corbool = "1"
+                    corbool = str.encode(corbool)
+                    f = open("pin", "wb")
+                    f.write(corbool)
+                    f.close()
+                    time.sleep(1)
                     return
                 else:
                     if not t1.is_alive():
@@ -109,6 +121,13 @@ def pin():
                                 target=run,
                             )
                         t1.start()
+                        count += 1
+                        corbool = "0"
+                        corbool = str.encode(corbool)
+                        f = open("pin", "wb")
+                        f.write(corbool)
+                        f.close()
+                        time.sleep(1)
                         return 
                     return
             else:
@@ -118,15 +137,19 @@ def pin():
                             target=run,
                         )
                     t1.start()
+                    count+=1
+                    corbool = "0"
+                    corbool = str.encode(corbool)
+                    f = open("pin", "wb")
+                    f.write(corbool)
+                    f.close()
+                    time.sleep(1)
                     return 
                 return
 
 def stopping():
-    print(type(t1))
     t1.terminate()
-    print("TERMINATED:", t1, t1.is_alive())
     t1.join()
-    print("JOINED:", t1, t1.is_alive())
     if sys.platform.startswith("linux"):
         subprocess.call(["xset", "-display", ":0", "dpms", "force", "on"])
 def run():
@@ -153,8 +176,7 @@ def run():
             subprocess.call(
                 "echo 'tell application \"Finder\" to sleep' | osascript", shell=True
             )
-
-        print("Thread running")
+        print("tr")
         time.sleep(0.5)
 
 
@@ -199,7 +221,6 @@ if "picamera" in sys.modules:
 
         if len(rects) == 0:
             j = j + 1
-            print(j)
             if j == 7:
                 flag = 1
                 # client.publish("iotscreenoff/monitor","OFF, Flag = 0")
@@ -209,15 +230,11 @@ if "picamera" in sys.modules:
                 t1.start()
         else:
             j = 0
-            print("Restart", str(j))
             if flag == 1:
                 # subprocess.call(["xset", "-display",":0","dpms","force","on"])
                 flag = 0
-                print(type(t1))
                 t1.terminate()
-                print("TERMINATED:", t1, t1.is_alive())
                 t1.join()
-                print("JOINED:", t1, t1.is_alive())
                 subprocess.call(["xset", "-display", ":0", "dpms", "force", "on"])
 
         # OpenCV returns bounding box coordinates in (x, y, w, h) order
@@ -352,11 +369,9 @@ if "picamera" not in sys.modules:
 
             # update the list of names
             names.append(name)
-        print(names)
 
         if len(rects) == 0 or args["idhash"] not in names:
             j = j + 1
-            print(j)
             if j == 10:
                 flag = 1
                 # client.publish("iotscreenoff/monitor","OFF, Flag = 0")
@@ -366,7 +381,6 @@ if "picamera" not in sys.modules:
                 t1.start()
         else:
             j = 0
-            print("Restart", str(j))
             if flag == 1:
                 # subprocess.call(["xset", "-display",":0","dpms","force","on"])
                 flag = 0

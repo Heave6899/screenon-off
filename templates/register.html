@@ -1,92 +1,113 @@
-<div id="my_photo_booth">
-  <div id="my_camera"></div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/webcamjs/1.0.26/webcam.min.js"></script>
-  <script
-    src="https://code.jquery.com/jquery-3.1.1.min.js"
-    crossorigin="anonymous"
-  ></script>
-  <!-- Configure a few settings and attach camera -->
-  <script language="JavaScript">
-    Webcam.set({
-      // live preview size
-      width: 320,
-      height: 240,
-
-      // device capture size
-      dest_width: 640,
-      dest_height: 480,
-
-      // final cropped size
-      crop_width: 480,
-      crop_height: 480,
-
-      // format and quality
-      image_format: "jpeg",
-      jpeg_quality: 90,
-
-      // flip horizontal (mirror mode)
-      flip_horiz: true,
-    });
-    Webcam.attach("#my_camera");
-  </script>
-
-  <br />
-  <div id="results" style="display: none">
-    <!-- Your captured image will appear here... -->
-  </div>
-
-  <!-- A button for taking snaps -->
-  
-  <form>
-    <div id="pre_take_buttons">
-      <!-- This button is shown before the user takes a snapshot -->
-      <input
-        type="button"
-        class="btn btn-success btn-squared"
-        value="CAPTURE"
-        onClick="preview_snapshot()"
-      />
+<html>
+  <head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+  </head>
+  <body>
+    <nav class="navbar navbar-light bg-light">
+      <span class="navbar-brand mb-0 h1">This is a Demo of the Screen Automated Turn on/off system by Vansh Patel, Dr. Ankit Thakkar</div></span>
+    </nav>
+    <div class="container" style="margin-top: 10%;">
+      <div class="row">
+        <div class="col">
+          <div id="my_photo_booth">
+            <div id="my_camera"></div>
+          
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/webcamjs/1.0.26/webcam.min.js"></script>
+            <script
+              src="https://code.jquery.com/jquery-3.1.1.min.js"
+              crossorigin="anonymous"
+            ></script>
+            <!-- Configure a few settings and attach camera -->
+            <script language="JavaScript">
+              Webcam.set({
+                // live preview size
+                width: 640,
+                height: 480,
+          
+                // device capture size
+                dest_width: 640,
+                dest_height: 480,
+          
+                // final cropped size
+                crop_width: 480,
+                crop_height: 480,
+          
+                // format and quality
+                image_format: "jpeg",
+                jpeg_quality: 90,
+          
+                // flip horizontal (mirror mode)
+                flip_horiz: true,
+              });
+              Webcam.attach("#my_camera");
+            </script>
+          
+            <br />
+            <div id="results" style="display: none">
+              <!-- Your captured image will appear here... -->
+            </div>
+          
+            <!-- A button for taking snaps -->
+            
+            <form>
+              <div id="pre_take_buttons">
+                <!-- This button is shown before the user takes a snapshot -->
+                <input
+                  type="button"
+                  class="btn btn-success btn-squared"
+                  value="CAPTURE"
+                  onClick="preview_snapshot()"
+                />
+              </div>
+          
+              <div id="post_take_buttons" style="display: none">
+                <!-- These buttons are shown after a snapshot is taken -->
+                <input
+                  type="button"
+                  class="btn btn-danger btn-squared responsive-width"
+                  value="&lt; AGAIN"
+                  onClick="cancel_preview()"
+                />
+                <input
+                  type="button"
+                  class="btn btn-success btn-squared responsive-width"
+                  value="SAVE &gt;"
+                  onClick="save_photo()"
+                  style="font-weight: bold"
+                />
+              </div>
+              <div id="countrem">Remaining snapshots: 10</div>
+              <input type="email" class="form-control" placeholder="enter email" disabled value = {{ email }} name = "mail" id="mail">
+              <div id="register" style="display: none">
+                <!-- These buttons are shown after a snapshot is taken -->
+                <input
+                  type="button"
+                  class="btn btn-danger btn-squared responsive-width"
+                  value="&lt; REGISTER FACE"
+                  onClick="register()"
+                />
+              </div>
+            </form>
+          </div>
+          <div id="reg" style="display: none">
+            <input type="text" class="form-control" name="pincode" placeholder="Enter the PIN" maxlength="4"  id="pin" pattern="\d{4}" required/>
+              <input type="button" class="btn btn-danger btn-squared responsive-width" value="REGISTER FACE" onClick="register()"/>
+          </div>
+        </div>
+        <div class="col">
+          <h4>Instructions</h4>
+          <ol>
+            <li>Please take 10 snapshots of yourself, make sure the lighting is proper and the face is propely lit for the best results.</li>
+            <li>Click on Capture to freeze the frame, click SAVE to save the image.</li>
+            <li>If not satisfied with the image, click AGAIN to recapture the image.</li>
+            <li>After 10 Images are saved, you will be asked to enter pin. Please enter it and click on REGISTER FACE to register it.</li>
+            <li>Please wait a few seconds, you will be automatically redirected to the next page.</li>
+            <li>Do not reload the webpage else you will have to start over.</li>
+          </ol>
+        </div>
+      </div>
     </div>
 
-    <div id="post_take_buttons" style="display: none">
-      <!-- These buttons are shown after a snapshot is taken -->
-      <input
-        type="button"
-        class="btn btn-danger btn-squared responsive-width"
-        value="&lt; AGAIN"
-        onClick="cancel_preview()"
-      />
-      <input
-        type="button"
-        class="btn btn-success btn-squared responsive-width"
-        value="SAVE &gt;"
-        onClick="save_photo()"
-        style="font-weight: bold"
-      />
-    </div>
-    <div id="countrem">Remaining snapshots: 15</div>
-    <input type="email" placeholder="enter email" name = "mail" id="mail">
-    <div id="register" style="display: none">
-      <!-- These buttons are shown after a snapshot is taken -->
-      <input
-        type="button"
-        class="btn btn-danger btn-squared responsive-width"
-        value="&lt; REGISTER FACE"
-        onClick="register()"
-      />
-    </div>
-  </form>
-</div>
-<div id="reg" style="display: none">
-  <input type="text"  name="pincode" maxlength="4"  id="pin" pattern="\d{4}" required/>
-    <input
-    type="button"
-    class="btn btn-danger btn-squared responsive-width"
-    value="&lt; REGISTER FACE"
-    onClick="register()"
-  />
-</div>
 
 <script language="JavaScript">
   // preload shutter audio clip
@@ -128,9 +149,9 @@
       });
       count++;
       console.log(count)
-      if(count < 15){
+      if(count < 10){
         Webcam.unfreeze();        
-        document.getElementById('countrem').innerHTML = "Remaining snapshots: "+(15-count);
+        document.getElementById('countrem').innerHTML = "Remaining snapshots: "+(10-count);
         document.getElementById('pre_take_buttons').style.display = '';
         document.getElementById('post_take_buttons').style.display = 'none';      
 
@@ -150,6 +171,10 @@
     $.getJSON($SCRIPT_ROOT + '/_registerface',{
       name : mail,
       pin : pin
-    },function(data){});
+    },function(data){
+      window.location.replace(data.url);
+    });
   }
 </script>
+</body>
+</html>
