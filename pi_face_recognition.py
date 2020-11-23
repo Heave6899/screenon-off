@@ -94,7 +94,7 @@ def pin():
     while True:
         if flagpin == 0:
             print("Please enter pin")
-            time.sleep(10)
+            time.sleep(30)
             #m, n, o = select.select( [sys.stdin], [], [], 20 )
             #------------------
             f = open("pin", "rb")
@@ -400,16 +400,16 @@ if "picamera" not in sys.modules:
             )
 
         # display the image to our screen
-        cv2.imshow("Frame", frame)
+        #cv2.imshow("Frame", frame)
         key = cv2.waitKey(1) & 0xFF
 
-        # if the `q` key was pressed, break from the loop
-        # if key == ord("q"):
-        # 	break
+        #if the `q` key was pressed, break from the loop
+        if key == ord("q"):
+        	break
 
         # update the FPS counter
         # fps.update()
         time.sleep(1)
 
-    cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
 # vs.stop()

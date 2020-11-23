@@ -20,17 +20,13 @@
                 required>
               <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
             </div>
-            <div class="form-group">
-              <label for="pin">Pin</label>
-              <input type="password" class="form-control" name="pin" id="pin" required>
-            </div>
             <button type="submit" class="btn btn-primary" onclick="check()">Submit</button>
             </form>
         </div>
         <div class="col align-middle">
           <h4>Instructions</h4>
           <ol>
-            <li>Please enter your mail, if you are already registered, please enter the PIN too.</li>
+            <li>Please enter your mail</li>
             <li>If you aren't registered, please enter your mail and click Submit to be redirected to the Registration page.</li>
             <li>This is a demo of the Screen Automated Turn on/off system.</li>
           </ol>
@@ -40,7 +36,6 @@
   </div>
   <script>
     function check() {
-      var pin = document.getElementById('pin').value;
       var mail = document.getElementById('mail').value;
       if (mail == "") {
         document.getElementById('mes').innerText = "Please enter valid mail";
@@ -50,7 +45,6 @@
 
       $.getJSON($SCRIPT_ROOT + '/checkmail', {
         mail: mail,
-        pin: pin
       }, function (data) {
         if (data.response != undefined)
           document.getElementById('mes').innerText = data.response;

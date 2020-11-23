@@ -6,6 +6,24 @@ import db, sys
 import subprocess
 import time
 import pexpect.fdpexpect
+import sys
+import select
+if sys.platform.startswith("win"):
+    import win32gui
+    import win32con
+    from os import getpid, system
+    from threading import Timer
+
+import multiprocessing
+
+import os
+import face_recognition
+import argparse
+import imutils
+import pickle
+import time
+import cv2
+import subprocess
 #test to insert data to the data base
 
 app = Flask(__name__,template_folder="templates")
@@ -14,6 +32,7 @@ app.config["DEBUG"] = True
 mail = ''
 filename = ''
 pin = ''
+co = 0
 
 @app.route('/_photo_cap')
 def photo_cap():
@@ -62,15 +81,23 @@ def register():
 @app.route('/checkmail')
 def checkmail():
     global mail
+    global co
     mail = request.args.get('mail')
-    pin = request.args.get('pin')
-    filename = str(mail) + "^" + str(pin)
-    pathx = os.getcwd() + "/dataset/" + str(mail) + "/" + filename 
+    #filename = str(mail) + "^" + str(pin)
+    #pathx = os.getcwd() + "/dataset/" + str(mail) + "/" + filename 
+    pathx = os.getcwd() + "/dataset/" + mail
     if path.exists(os.getcwd() + "/dataset/" + mail):
-        if path.exists(pathx):
-            return jsonify(url = url_for('start'))
+        if co < 3:
+            x = detectface(pathx,mail)
+            print(co)
+            if x == 1:
+                return jsonify(url = url_for('start'))
+            else:
+                co += 1
+                return jsonify(response = "Error, user face not recognised")
         else:
-            return jsonify(response = "Error, incorrect pin")
+            co = 0
+            return jsonify(response = "User incorrect, try again")
     else:
         return jsonify(url = url_for('register'))
 
@@ -116,6 +143,57 @@ def startsession(*type):
             return jsonify(message = "Error wrong pin", correct = '0')
 count = 0
 
+def detectface(p, mail):
+    prefixed = [filename for filename in os.listdir(p) if filename.startswith(mail)]
+    data = pickle.loads(open(p+"/"+prefixed[0], "rb").read())
+    detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    camera = cv2.VideoCapture(0)
+    framerate = camera.get(0)
+    ret, frame = camera.read()
+    camera.release()
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    rects = detector.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(30, 30),
+            flags=cv2.CASCADE_SCALE_IMAGE,
+        )
+    boxes = [(y, x + w, y + h, x) for (x, y, w, h) in rects]
+    encodings = face_recognition.face_encodings(rgb, boxes)
+    names = []
+    for encoding in encodings:
+        # attempt to match each face in the input image to our known
+        # encodings
+        matches = face_recognition.compare_faces(data["encodings"], encoding)
+        name = "Unknown"
+
+        # check to see if we have found a match
+        if True in matches:
+            # find the indexes of all matched faces then initialize a
+            # dictionary to count the total number of times each face
+            # was matched
+            matchedIdxs = [i for (i, b) in enumerate(matches) if b]
+            counts = {}
+
+            # loop over the matched indexes and maintain a count for
+            # each recognized face face
+            for i in matchedIdxs:
+                name = data["names"][i]
+                counts[name] = counts.get(name, 0) + 1
+
+            # determine the recognized face with the largest number
+            # of votes (note: in the event of an unlikely tie Python
+            # will select first entry in the dictionary)
+            name = max(counts, key=counts.get)
+
+        # update the list of names
+        names.append(name)
+    if mail in names:
+        return 1
+    else:
+        return 0
 
 @app.route('/_checkpin')
 def checkpin():
@@ -141,7 +219,7 @@ def checkpin():
     # print(x)
     
     #p.stdin.write(pin)
-    time.sleep(10)
+    time.sleep(30)
     f = open("pin", "rb")
     corbool = f.readline()
     f.close()
@@ -152,7 +230,7 @@ def checkpin():
         pin = ''
         return jsonify(message = m)
     else:
-        m = "Error, you have " + str(3-count) + " chances remaining"
+        m = "Error, you have " + str(2-count) + " chances remaining"
         count += 1
         if count == 3:
             m = "You are locked out! Shutting down computer"
