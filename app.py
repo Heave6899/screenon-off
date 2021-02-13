@@ -33,29 +33,36 @@ mail = ''
 filename = ''
 pin = ''
 co = 0
-
+count = 0
 @app.route('/_photo_cap')
 def photo_cap():
     global mail
     global filename
-    photo_base64 = request.args.get('photo_cap')
-    photo_name = str(request.args.get('photo_name'))
-    mail = str(request.args.get('user'))
+    global frame_h, count
+    #photo_base64 = request.args.get('photo_cap')
+    #photo_name = str(request.args.get('photo_name'))
+    #mail = str(request.args.get('user'))
+    photo_name = str(count)
     photo_name = photo_name.zfill(5)
-    header, encoded = photo_base64.split(",", 1)
-    binary_data = base64.b64decode(encoded)
+    #header, encoded = photo_base64.split(",", 1)
+    #binary_data = base64.b64decode(encoded)
     image_name = str(photo_name)+".jpeg"
 
     if path.exists(os.path.join("dataset",mail)):
-        with open(os.path.join("dataset",mail,image_name), "wb") as f:
-            f.write(binary_data)
+        # with open(os.path.join("dataset",mail,image_name), "wb") as f:
+        #     f.write(binary_data)
+        cv2.imwrite(os.path.join("dataset",mail,image_name), frame_h)
+        count = count +1 
+        print(count)
     else:
         os.mkdir(os.path.join("dataset",mail))
         time.sleep(0.3)
-        with open(os.path.join(mail,image_name), "wb") as f:
-            f.write(binary_data)
-
-    response = 'ok'
+        # with open(os.path.join(mail,image_name), "wb") as f:
+        #     f.write(binary_data)
+        cv2.imwrite(os.path.join("dataset",mail,image_name), frame_h)
+        count = count +1 
+        print(count)
+    response = 'success'
     
 
         #os.system("python encode_faces.py -i dataset -e encoding.pickle  -d hog")
@@ -74,10 +81,84 @@ def start():
 def stop():
     return render_template('stop.html', email = mail)
 
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
 @app.route('/register')
 def register():
     return render_template('register.html', email = mail)
 
+frame_h = 0
+pause = 0
+def gen_frames():
+    camera1 = cv2.VideoCapture(0)
+    camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
+    camera2 = cv2.VideoCapture(1)
+    camera2.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
+    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    global pause
+    global frame_h
+    print(pause)
+    while 1:
+        if pause == 0 and count < 15:
+            success1, frame1 = camera1.read() 
+            success2, frame2 = camera2.read() # read the camera frame
+            if not success1 or not success2:
+                break
+            else:
+                gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
+                gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+                faces = face_cascade.detectMultiScale(
+                    gray1,
+                    scaleFactor=1.3,
+                    minNeighbors=5,
+                    minSize=(40, 40),
+                    flags=cv2.CASCADE_SCALE_IMAGE,
+                    )
+                lowers = face_cascade.detectMultiScale(
+                    gray2,
+                    scaleFactor=1.3,
+                    minNeighbors=5,
+                    minSize=(40, 40),
+                    flags=cv2.CASCADE_SCALE_IMAGE,
+                    )
+                #print(body)
+                for (x,y,w,h) in faces:
+                    cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,0,0),2)
+                    roi_gray = gray1[y:y+h, x:x+w]
+                    roi_color = frame1[y:y+h, x:x+w]
+                for (x,y,w,h) in lowers:
+                    cv2.rectangle(frame2,(x,y),(x+w,y+h),(0,0,255),2)
+                    roi_gray = gray2[y:y+h, x:x+w]
+                    roi_color = frame2[y:y+h+50, x:x+w]
+                    
+
+                # for (x,y,w,h) in body:
+                #     cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,255,0),2)
+                #     roi_gray = gray1[y:y+h, x:x+w]
+                #     roi_color = frame1[y:y+h, x:x+w]
+                
+                frame_h = cv2.hconcat([frame1,frame2])
+                ret, buffer = cv2.imencode('.jpg', frame_h)
+                frame = buffer.tobytes()
+                
+                yield (b'--frame\r\n'
+                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
+        else:
+            if count > 15:
+                cv2.destroyAllWindows()
+                camera1.release()
+                camera2.release()
+
+@app.route('/pauseplay')
+def pause_fn():
+    global pause
+    if pause == 1:
+        pause = 0
+    else:
+        pause = 1
+    return jsonify(response = 'ok')
 @app.route('/checkmail')
 def checkmail():
     global mail
@@ -110,7 +191,7 @@ def registerface():
     time.sleep(0.3)
     filename = str(name) + "^" + str(pin)
     path = os.getcwd() + "/dataset/" + str(name) + "/"
-    p = subprocess.Popen(['python', 'encode_faces.py', '-i', path,'-e',path + filename,'-d','hog'])
+    p = subprocess.Popen(['python', 'encode_faces.py', '-i', path,'-e',path + filename,'-d','cnn'])
     (output, err) = p.communicate()  
     p_status = p.wait()
     p.terminate()
@@ -147,17 +228,28 @@ def detectface(p, mail):
     prefixed = [filename for filename in os.listdir(p) if filename.startswith(mail)]
     data = pickle.loads(open(p+"/"+prefixed[0], "rb").read())
     detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-    camera = cv2.VideoCapture(0)
-    framerate = camera.get(0)
-    ret, frame = camera.read()
-    camera.release()
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    camera1 = cv2.VideoCapture(0)
+    camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+    camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
+    camera2 = cv2.VideoCapture(1)
+    camera2.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+    camera2.set(cv2.CAP_PROP_FRAME_HEIGHT , 288) 
+    success2, frame2 = camera2.read()
+    success1, frame1 = camera1.read()
+    time.sleep(0.2)
+    camera1.release()
+    camera2.release()
+    cv2.destroyAllWindows()
+    #frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
+    frame = cv2.hconcat([frame1,frame2])
+    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     rects = detector.detectMultiScale(
             gray,
             scaleFactor=1.1,
             minNeighbors=5,
-            minSize=(30, 30),
+            minSize=(40, 40),
             flags=cv2.CASCADE_SCALE_IMAGE,
         )
     boxes = [(y, x + w, y + h, x) for (x, y, w, h) in rects]
@@ -187,11 +279,15 @@ def detectface(p, mail):
             # of votes (note: in the event of an unlikely tie Python
             # will select first entry in the dictionary)
             name = max(counts, key=counts.get)
-
+            print(name)
         # update the list of names
         names.append(name)
     if mail in names:
-        return 1
+        print(names.count(mail)) 
+        if(names.count(mail) >= 2):
+            return 1
+        else:
+            return 0
     else:
         return 0
 

@@ -308,21 +308,42 @@ if "picamera" not in sys.modules:
     flag = 0
     t1 = 0
     while True:
-        camera = cv2.VideoCapture(0)
-        framerate = camera.get(5)
+        camera1 = cv2.VideoCapture(0)
+        camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
+        camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+        camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
+        camera2 = cv2.VideoCapture(1)
+        camera2.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+        camera2.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+        camera2.set(cv2.CAP_PROP_FRAME_HEIGHT , 288) 
+        success2, frame2 = camera2.read()
+        success1, frame1 = camera1.read() 
+        while not success1 or not success2:
+            success2, frame2 = camera2.read()
+            success1, frame1 = camera1.read()
+        framerate1 = camera1.get(5)
+        framerate2 = camera2.get(5)
+        camera2.release()
+        camera1.release()
         # camera.resolution = (300,300)
         # camera.framerate = 3
-        ret, frame = camera.read()
-        camera.release()
-        time.sleep(0.7)
+        
+        #time.sleep(0.7)
 
         # frame = frame.array
 
         # convert the input frame from (1) BGR to grayscale (for face
         # detection) and (2) from BGR to RGB (for face recognition)
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
+        gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+        gray = cv2.hconcat([frame1,frame2])
+        frame = cv2.hconcat([frame1,frame2])
+        # cv2.imshow("frames",frame)
+        #gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        #rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
+        ## Releasing Camera Creating Issues
+       
         # detect faces in the grayscale frame
         rects = detector.detectMultiScale(
             gray,
@@ -336,9 +357,9 @@ if "picamera" not in sys.modules:
         # but we need them in (top, right, bottom, left) order, so we
         # need to do a bit of reordering
         boxes = [(y, x + w, y + h, x) for (x, y, w, h) in rects]
-
+         
         # compute the facial embeddings for each face bounding box
-        encodings = face_recognition.face_encodings(rgb, boxes)
+        encodings = face_recognition.face_encodings(frame, boxes)
         names = []
 
         # loop over the facial embeddings
@@ -370,8 +391,9 @@ if "picamera" not in sys.modules:
             # update the list of names
             names.append(name)
 
-        if len(rects) == 0 or args["idhash"] not in names:
+        if len(rects) == 0 or names.count(args["idhash"]) < 2:
             j = j + 1
+            print("j",j)
             if j == 10:
                 flag = 1
                 # client.publish("iotscreenoff/monitor","OFF, Flag = 0")
@@ -400,7 +422,7 @@ if "picamera" not in sys.modules:
             )
 
         # display the image to our screen
-        #cv2.imshow("Frame", frame)
+        cv2.imshow("Frame", frame)
         key = cv2.waitKey(1) & 0xFF
 
         #if the `q` key was pressed, break from the loop
@@ -409,7 +431,7 @@ if "picamera" not in sys.modules:
 
         # update the FPS counter
         # fps.update()
-        time.sleep(1)
-
-        cv2.destroyAllWindows()
+        #time.sleep(1)
+        
+        #cv2.destroyAllWindows()
 # vs.stop()
