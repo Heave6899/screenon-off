@@ -5,6 +5,7 @@ from os import path
 import db, sys
 import subprocess
 import time
+from deepface import DeepFace
 import pexpect.fdpexpect
 import sys
 import select
@@ -57,16 +58,10 @@ def photo_cap():
     else:
         os.mkdir(os.path.join("dataset",mail))
         time.sleep(0.3)
-        # with open(os.path.join(mail,image_name), "wb") as f:
-        #     f.write(binary_data)
         cv2.imwrite(os.path.join("dataset",mail,image_name), frame_h)
         count = count +1 
         print(count)
     response = 'success'
-    
-
-        #os.system("python encode_faces.py -i dataset -e encoding.pickle  -d hog")
-        #os.system("python ")
     return jsonify(response=response)
 
 @app.route('/')
@@ -94,8 +89,8 @@ pause = 0
 def gen_frames():
     camera1 = cv2.VideoCapture(0)
     camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
-    camera2 = cv2.VideoCapture(1)
-    camera2.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
+    # camera2 = cv2.VideoCapture(1)
+    # camera2.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
     face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
     global pause
     global frame_h
@@ -103,53 +98,53 @@ def gen_frames():
     while 1:
         if pause == 0 and count < 15:
             success1, frame1 = camera1.read() 
-            success2, frame2 = camera2.read() # read the camera frame
-            if not success1 or not success2:
-                break
-            else:
-                gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
-                gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
-                faces = face_cascade.detectMultiScale(
-                    gray1,
-                    scaleFactor=1.3,
-                    minNeighbors=5,
-                    minSize=(40, 40),
-                    flags=cv2.CASCADE_SCALE_IMAGE,
-                    )
-                lowers = face_cascade.detectMultiScale(
-                    gray2,
-                    scaleFactor=1.3,
-                    minNeighbors=5,
-                    minSize=(40, 40),
-                    flags=cv2.CASCADE_SCALE_IMAGE,
-                    )
-                #print(body)
-                for (x,y,w,h) in faces:
-                    cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,0,0),2)
-                    roi_gray = gray1[y:y+h, x:x+w]
-                    roi_color = frame1[y:y+h, x:x+w]
-                for (x,y,w,h) in lowers:
-                    cv2.rectangle(frame2,(x,y),(x+w,y+h),(0,0,255),2)
-                    roi_gray = gray2[y:y+h, x:x+w]
-                    roi_color = frame2[y:y+h+50, x:x+w]
-                    
+            # success2, frame2 = camera2.read() # read the camera frame
+            # if not success1 or not success2:
+                # break
+            # else:
+            gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
+            # gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(
+                gray1,
+                scaleFactor=1.3,
+                minNeighbors=5,
+                minSize=(40, 40),
+                flags=cv2.CASCADE_SCALE_IMAGE,
+                )
+            # lowers = face_cascade.detectMultiScale(
+            #     gray2,
+            #     scaleFactor=1.3,
+            #     minNeighbors=5,
+            #     minSize=(40, 40),
+            #     flags=cv2.CASCADE_SCALE_IMAGE,
+            #     )
+            #print(body)
+            for (x,y,w,h) in faces:
+                cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,0,0),2)
+                roi_gray = gray1[y:y+h, x:x+w]
+                roi_color = frame1[y:y+h, x:x+w]
+            # for (x,y,w,h) in lowers:
+            #     cv2.rectangle(frame2,(x,y),(x+w,y+h),(0,0,255),2)
+            #     roi_gray = gray2[y:y+h, x:x+w]
+            #     roi_color = frame2[y:y+h+50, x:x+w]
+                
 
-                # for (x,y,w,h) in body:
-                #     cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,255,0),2)
-                #     roi_gray = gray1[y:y+h, x:x+w]
-                #     roi_color = frame1[y:y+h, x:x+w]
-                
-                frame_h = cv2.hconcat([frame1,frame2])
-                ret, buffer = cv2.imencode('.jpg', frame_h)
-                frame = buffer.tobytes()
-                
-                yield (b'--frame\r\n'
-                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
+            # for (x,y,w,h) in body:
+            #     cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,255,0),2)
+            #     roi_gray = gray1[y:y+h, x:x+w]
+            #     roi_color = frame1[y:y+h, x:x+w]
+            
+            # frame_h = cv2.hconcat([frame1,frame2])
+            ret, buffer = cv2.imencode('.jpg', frame1)
+            frame = buffer.tobytes()
+            
+            yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
         else:
             if count > 15:
                 cv2.destroyAllWindows()
                 camera1.release()
-                camera2.release()
+                # camera2.release()
 
 @app.route('/pauseplay')
 def pause_fn():
@@ -212,7 +207,8 @@ def startsession(*type):
     message = "Please click on verify pin whenever you resume the session to prevent disruption"
     pathx = os.getcwd() + "/dataset/" + str(name) + "/" + filename 
     if string == '0' or '0' in type:
-        p = subprocess.Popen(['python', 'pi_face_recognition.py', '-c', 'haarcascade_frontalface_default.xml','-e',pathx,'-i',name],stdin=subprocess.PIPE)
+        # p = subprocess.Popen(['python', 'pi_face_recognition.py', '-c', 'haarcascade_frontalface_default.xml','-e',pathx,'-i',name],stdin=subprocess.PIPE)
+        pi_face_recognition()
         url = url_for('stop')
         return jsonify(url = url, message = message, email = mail)
     if string == '1':
@@ -225,71 +221,71 @@ def startsession(*type):
 count = 0
 
 def detectface(p, mail):
-    prefixed = [filename for filename in os.listdir(p) if filename.startswith(mail)]
-    data = pickle.loads(open(p+"/"+prefixed[0], "rb").read())
-    detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    # prefixed = [filename for filename in os.listdir(p) if filename.startswith(mail)]
+    # data = pickle.loads(open(p+"/"+prefixed[0], "rb").read())
+    # detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
     camera1 = cv2.VideoCapture(0)
     camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
     camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
-    camera2 = cv2.VideoCapture(1)
-    camera2.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
-    camera2.set(cv2.CAP_PROP_FRAME_HEIGHT , 288) 
-    success2, frame2 = camera2.read()
-    success1, frame1 = camera1.read()
+    # camera2 = cv2.VideoCapture(1)
+    # camera2.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+    # camera2.set(cv2.CAP_PROP_FRAME_HEIGHT , 288) 
+    # success2, frame2 = camera2.read()
+    success, frame = camera1.read()
     time.sleep(0.2)
     camera1.release()
-    camera2.release()
+    # camera2.release()
     cv2.destroyAllWindows()
     #frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
-    frame = cv2.hconcat([frame1,frame2])
+    # frame = cv2.hconcat([frame1,frame2])
     gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    rects = detector.detectMultiScale(
-            gray,
-            scaleFactor=1.1,
-            minNeighbors=5,
-            minSize=(40, 40),
-            flags=cv2.CASCADE_SCALE_IMAGE,
-        )
-    boxes = [(y, x + w, y + h, x) for (x, y, w, h) in rects]
-    encodings = face_recognition.face_encodings(rgb, boxes)
-    names = []
-    for encoding in encodings:
-        # attempt to match each face in the input image to our known
-        # encodings
-        matches = face_recognition.compare_faces(data["encodings"], encoding)
-        name = "Unknown"
+    # rects = detector.detectMultiScale(
+    #         gray,
+    #         scaleFactor=1.1,
+    #         minNeighbors=5,
+    #         minSize=(40, 40),
+    #         flags=cv2.CASCADE_SCALE_IMAGE,
+    #     )
+    # boxes = [(y, x + w, y + h, x) for (x, y, w, h) in rects]
+    # encodings = face_recognition.face_encodings(rgb, boxes)
+    # names = []
+    # for encoding in encodings:
+    #     # attempt to match each face in the input image to our known
+    #     # encodings
+    #     matches = face_recognition.compare_faces(data["encodings"], encoding)
+    #     name = "Unknown"
 
-        # check to see if we have found a match
-        if True in matches:
-            # find the indexes of all matched faces then initialize a
-            # dictionary to count the total number of times each face
-            # was matched
-            matchedIdxs = [i for (i, b) in enumerate(matches) if b]
-            counts = {}
+    #     # check to see if we have found a match
+    #     if True in matches:
+    #         # find the indexes of all matched faces then initialize a
+    #         # dictionary to count the total number of times each face
+    #         # was matched
+    #         matchedIdxs = [i for (i, b) in enumerate(matches) if b]
+    #         counts = {}
 
-            # loop over the matched indexes and maintain a count for
-            # each recognized face face
-            for i in matchedIdxs:
-                name = data["names"][i]
-                counts[name] = counts.get(name, 0) + 1
+    #         # loop over the matched indexes and maintain a count for
+    #         # each recognized face face
+    #         for i in matchedIdxs:
+    #             name = data["names"][i]
+    #             counts[name] = counts.get(name, 0) + 1
 
-            # determine the recognized face with the largest number
-            # of votes (note: in the event of an unlikely tie Python
-            # will select first entry in the dictionary)
-            name = max(counts, key=counts.get)
-            print(name)
-        # update the list of names
-        names.append(name)
-    if mail in names:
-        print(names.count(mail)) 
-        if(names.count(mail) >= 2):
-            return 1
-        else:
-            return 0
-    else:
-        return 0
+    #         # determine the recognized face with the largest number
+    #         # of votes (note: in the event of an unlikely tie Python
+    #         # will select first entry in the dictionary)
+    #         name = max(counts, key=counts.get)
+    #         print(name)
+    #     # update the list of names
+    #     names.append(name)
+    # if mail in names:
+    #     print(names.count(mail)) 
+    #     if(names.count(mail) >= 2):
+    #         return 1
+    #     else:
+    #         return 0
+    # else:
+    #     return 0
 
 @app.route('/_checkpin')
 def checkpin():
@@ -347,5 +343,132 @@ def startpin():
     else:
         error = "Invalid Pin, Please try again"
         return jsonify(response = error, correct = "0")
+
+def pi_face_recognition():
+    j = 0
+    flag = 0
+    t1 = 0
+    while True:
+        camera1 = cv2.VideoCapture(0)
+        camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
+        camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+        camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
+        # camera2 = cv2.VideoCapture(1)
+        # camera2.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+        # camera2.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+        # camera2.set(cv2.CAP_PROP_FRAME_HEIGHT , 288) 
+        # success2, frame2 = camera2.read()
+        success1, frame1 = camera1.read() 
+        while not success1 or not success2:
+            # success2, frame2 = camera2.read()
+            success1, frame1 = camera1.read()
+        framerate1 = camera1.get(5)
+        # framerate2 = camera2.get(5)
+        # camera2.release()
+        camera1.release()
+        # camera.resolution = (300,300)
+        # camera.framerate = 3
+        
+        #time.sleep(0.7)
+
+        # frame = frame.array
+
+        # convert the input frame from (1) BGR to grayscale (for face
+        # detection) and (2) from BGR to RGB (for face recognition)
+        gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
+        # gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+        # gray = cv2.hconcat([frame1,frame2])
+        # frame = cv2.hconcat([frame1,frame2])
+        # cv2.imshow("frames",frame)
+        #gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        #rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        ## Releasing Camera Creating Issues
+       
+        # detect faces in the grayscale frame
+        # rects = detector.detectMultiScale(
+        #     gray,
+        #     scaleFactor=1.1,
+        #     minNeighbors=5,
+        #     minSize=(30, 30),
+        #     flags=cv2.CASCADE_SCALE_IMAGE,
+        # )
+
+        # OpenCV returns bounding box coordinates in (x, y, w, h) order
+        # but we need them in (top, right, bottom, left) order, so we
+        # need to do a bit of reordering
+        # boxes = [(y, x + w, y + h, x) for (x, y, w, h) in rects]
+         
+        # compute the facial embeddings for each face bounding box
+        # encodings = face_recognition.face_encodings(frame, boxes)
+        # names = []
+
+        # loop over the facial embeddings
+        # for encoding in encodings:
+            # attempt to match each face in the input image to our known
+            # encodings
+            # matches = face_recognition.compare_faces(data["encodings"], encoding)
+            # name = "Unknown"
+
+            # check to see if we have found a match
+            # if True in matches:
+                # find the indexes of all matched faces then initialize a
+                # dictionary to count the total number of times each face
+                # was matched
+                # matchedIdxs = [i for (i, b) in enumerate(matches) if b]
+                # counts = {}
+
+                # loop over the matched indexes and maintain a count for
+                # each recognized face face
+                # for i in matchedIdxs:
+                    # name = data["names"][i]
+                    # counts[name] = counts.get(name, 0) + 1
+
+                # determine the recognized face with the largest number
+                # of votes (note: in the event of an unlikely tie Python
+                # will select first entry in the dictionary)
+                # name = max(counts, key=counts.get)
+
+            # update the list of names
+            # names.append(name)
+
+        if len(rects) == 0 or names.count(args["idhash"]) < 2:
+            j = j + 1
+            print("j",j)
+            if j == 10:
+                flag = 1
+                # client.publish("iotscreenoff/monitor","OFF, Flag = 0")
+                t1 = multiprocessing.Process(
+                    target=run,
+                )
+                t1.start()
+        else:
+            j = 0
+            if flag == 1:
+                # subprocess.call(["xset", "-display",":0","dpms","force","on"])
+                flag = 0
+                stopping()
+                flagpin = 0
+                # t2 = multiprocessing.Process(target=pin,)
+                # t2.start()
+                pin()
+                
+        # loop over the recognized faces
+        for ((top, right, bottom, left), name) in zip(boxes, names):
+            # draw the predicted face name on the image
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+            y = top - 15 if top - 15 > 15 else top + 15
+            cv2.putText(
+                frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2
+            )
+
+        # display the image to our screen
+        cv2.imshow("Frame", frame)
+        key = cv2.waitKey(1) & 0xFF
+
+        #if the `q` key was pressed, break from the loop
+        if key == ord("q"):
+        	break
+
 
 app.run()
