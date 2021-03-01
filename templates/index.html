@@ -1,0 +1,59 @@
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js" crossorigin="anonymous"></script>
+
+</head>
+
+<body>
+    <nav class="navbar navbar-light bg-light">
+        <span class="navbar-brand mb-0 h1">This is a Demo of the Screen Automated Turn on/off system by Vansh Patel, Dr. Ankit Thakkar</div></span>
+    </nav>
+    <div class="container align-middle" style="margin-top: 10%;">
+        <div class="content">
+            <div class="row align-items-center">
+                <div class="col align-middle">
+                    <form">
+                        <div class="form-group">
+                        <p id="mes"></p>
+                        <label for="mail">Email address</label>
+                        <input type="email" name='mail' class="form-control" id="mail" aria-describedby="emailHelp"
+                            required>
+                        <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary" onclick="check()">Submit</button>
+                        </form>
+                </div>
+                <div class="col align-middle ">
+                    <h4>Instructions</h4>
+                    <ol>
+                        <li>Please enter your mail</li>
+                        <li>If you aren't registered, please enter your mail and click Submit to be redirected to the Registration page.</li>
+                        <li>This is a demo of the Screen Automated Turn on/off system.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+       function check() {
+            var mail = document.getElementById('mail').value;
+            if (mail == "") {
+                document.getElementById('mes').innerText = "Please enter valid mail";
+            }
+            else{
+                $SCRIPT_ROOT = {{ request.script_root | tojson | safe }};
+
+            $.getJSON($SCRIPT_ROOT + '/_checkmail', {
+                mail: mail,
+            }, function (data) {
+                if (data.response != undefined)
+                document.getElementById('mes').innerText = data.response;
+                if (data.url!=undefined)
+                window.location.replace(data.url)
+            });
+            }
+            }
+    </script>
+</body>
+
+</html

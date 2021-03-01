@@ -1,0 +1,129 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/webcamjs/1.0.26/webcam.min.js"></script>
+                    <script src="https://code.jquery.com/jquery-3.1.1.min.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <nav class="navbar navbar-light bg-light">
+        <span class="navbar-brand mb-0 h1">This is a Demo of the Screen Automated Turn on/off system by Vansh Patel, Dr. Ankit Thakkar</div></span>
+    </nav>
+    <div class="container" style="margin-top: 10%;">
+        <div class="row">
+            <div class="col">
+                <div id="my_photo_booth">
+                    <div id="my_camera">
+                        <img id="frames" src="{{ url_for('video_feed') }}" width="100%">
+                    </div>
+                    <br />
+                    <div id="results" style="display: none">
+                        <!-- Your captured image will appear here... -->
+                    </div>
+
+                    <!-- A button for taking snaps -->
+
+                    <form>
+                        <div id="pre_take_buttons">
+                            <!-- This button is shown before the user takes a snapshot -->
+                            <input type="button" class="btn btn-success btn-squared" value="CAPTURE" onClick="preview_snapshot()" />
+                        </div>
+
+                        <div id="post_take_buttons" style="display: none">
+                            <!-- These buttons are shown after a snapshot is taken -->
+                            <input type="button" class="btn btn-danger btn-squared responsive-width" value="&lt; AGAIN" onClick="cancel_preview()" />
+                            <input type="button" class="btn btn-success btn-squared responsive-width" value="SAVE &gt;" onClick="save_photo()" style="font-weight: bold" />
+                        </div>
+                        <div id="countrem">Remaining snapshots: 1</div>
+                        <input type="email" class="form-control" placeholder="enter email" disabled value={{ email }} name="mail" id="mail">
+                        <div id="register" style="display: none">
+                            <!-- These buttons are shown after a snapshot is taken -->
+                            <input type="button" class="btn btn-danger btn-squared responsive-width" value="&lt; REGISTER FACE" onClick="register()" />
+                        </div>
+                    </form>
+                </div>
+                <div id="reg" style="display: none">
+                    <input type="text" class="form-control" name="pincode" placeholder="Enter the PIN" maxlength="4" id="pin" pattern="\d{4}" required/>
+                    <input type="button" class="btn btn-danger btn-squared responsive-width" value="REGISTER FACE" onClick="register()" />
+                </div>
+            </div>
+            <div class="col">
+                <h4>Instructions</h4>
+                <ol>
+                    <li>Please take 1 snapshot(s) of yourself, make sure the lighting is proper and the face is propely lit for the best results.</li>
+                    <li>Click on Capture to freeze the frame, click SAVE to save the image.</li>
+                    <li>If not satisfied with the image, click AGAIN to recapture the image.</li>
+                    <li>After 10 Images are saved, you will be asked to enter pin. Please enter it and click on REGISTER FACE to register it.</li>
+                    <li>Please wait a few seconds, you will be automatically redirected to the next page.</li>
+                    <li>Do not reload the webpage else you will have to start over.</li>
+                    <li><a href="http://localhost:5000">Go to home page</a></li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+
+    <script language="JavaScript">
+        // preload shutter audio clip
+
+        function preview_snapshot() {
+
+            // freeze camera so user can preview current frame
+             $SCRIPT_ROOT = {{ request.script_root | tojson | safe }};
+            $.getJSON($SCRIPT_ROOT + '/pauseplay', function(response){
+                if(response.response == "ok"){
+                document.getElementById('pre_take_buttons').style.display = 'none';
+                document.getElementById('post_take_buttons').style.display = '';
+                }
+            });
+        }
+
+        function cancel_preview() {
+             $SCRIPT_ROOT = {{ request.script_root | tojson | safe }};
+            $.getJSON($SCRIPT_ROOT + '/pauseplay', function(response){
+                if(response.response == "ok")
+                { document.getElementById('pre_take_buttons').style.display = '';
+            document.getElementById('post_take_buttons').style.display = 'none';}
+            });
+        }
+        var count = 0;
+
+        function save_photo() {
+            $SCRIPT_ROOT = {{ request.script_root | tojson | safe }};
+            $.getJSON($SCRIPT_ROOT + '/_photo_cap', function(response){
+                if(response.response == "success"){
+                console.log("Success");
+                count++;
+                }
+            });
+            console.log(count)
+            if (count < 1) {
+                $SCRIPT_ROOT = {{ request.script_root | tojson | safe }};
+                $.getJSON($SCRIPT_ROOT + '/pauseplay');
+                document.getElementById('countrem').innerHTML = "Remaining snapshots: " + (1 - count);
+                document.getElementById('pre_take_buttons').style.display = '';
+                document.getElementById('post_take_buttons').style.display = 'none';
+            } 
+            else {
+                document.getElementById('countrem').innerHTML = "Remaining snapshots: " + 0;
+                document.getElementById('reg').style.display = '';
+                document.getElementById('my_photo_booth').style.display = 'none';
+            }
+        }
+
+        function register() {
+            var mail = document.getElementById("mail").value;
+            var pin = document.getElementById("pin").value;
+            $SCRIPT_ROOT = {{ request.script_root | tojson | safe }};
+            $.getJSON($SCRIPT_ROOT + '/_registerface', {
+                name: mail,
+                pin: pin
+            }, function(data) {
+                window.location.replace(data.url);
+            });
+        }
+    </script>
+</body>
+
+</html>
