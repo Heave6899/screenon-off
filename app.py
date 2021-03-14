@@ -54,6 +54,7 @@ check_pin = ''
 co = 0
 count = 0
 p = 0
+pause = 0
 
 # manager
 manager = multiprocessing.Manager()
@@ -70,12 +71,14 @@ def photo_cap():
     image_name2 = "2.jpg"
     if path.exists(os.path.join("dataset",global_mail)):
         cv2.imwrite(os.path.join("dataset",global_mail,image_name1), frame_h[0])
+        cv2.imwrite(os.path.join("dataset",global_mail,image_name2), frame_h[1])
         count = count + 1 
         print(count)
     else:
         os.mkdir(os.path.join("dataset",global_mail))
         time.sleep(0.3)
         cv2.imwrite(os.path.join("dataset",global_mail,image_name1), frame_h[0])
+        cv2.imwrite(os.path.join("dataset",global_mail,image_name2), frame_h[1])
         count = count + 1 
         print(count)
     response = 'success'
@@ -104,36 +107,53 @@ def register():
 
 def gen_frames():
     camera1 = cv2.VideoCapture(0)
-    camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
+    camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+    camera2 = cv2.VideoCapture(1)
+    camera2.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
     global pause
     global frame_h
     global face_cascade
     print(pause)
     while 1:
-        if pause == 0 and count < 15:
-            success1, frame1 = camera1.read() 
+        if pause == 0 and count < 1:
+            success1, frame1 = camera1.read()
+            success2, frame2 = camera2.read() 
             gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
-            faces = face_cascade.detectMultiScale(
-                gray1,
-                scaleFactor=1.3,
-                minNeighbors=5,
-                minSize=(40, 40),
-                flags=cv2.CASCADE_SCALE_IMAGE,
-                )
-            for (x,y,w,h) in faces:
-                cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,0,0),2)
-                roi_gray = gray1[y:y+h, x:x+w]
-                roi_color = frame1[y:y+h, x:x+w]
-            ret, buffer = cv2.imencode('.jpg', frame1)
+            gray2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2GRAY)
+            # faces1 = face_cascade.detectMultiScale(
+            #     gray1,
+            #     scaleFactor=1.3,
+            #     minNeighbors=5,
+            #     minSize=(40, 40),
+            #     flags=cv2.CASCADE_SCALE_IMAGE,
+            #     )
+            # for (x,y,w,h) in faces1:
+            #     cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,0,0),2)
+            #     roi_gray = gray1[y:y+h, x:x+w]
+            #     roi_color = frame1[y:y+h, x:x+w]
+            # faces2 = face_cascade.detectMultiScale(
+            #     gray2,
+            #     scaleFactor=1.3,
+            #     minNeighbors=5,
+            #     minSize=(40, 40),
+            #     flags=cv2.CASCADE_SCALE_IMAGE,
+            #     )
+            # for (x,y,w,h) in faces2:
+            #     cv2.rectangle(frame2,(x,y),(x+w,y+h),(255,0,0),2)
+            #     roi_gray = gray1[y:y+h, x:x+w]
+            #     roi_color = frame1[y:y+h, x:x+w]
+    
+            frame = cv2.hconcat([frame1, frame2])
+            frame_h = [frame1,frame2]
+            ret, buffer = cv2.imencode('.jpg', frame)
             frame = buffer.tobytes()
-            frame_h = [frame1]
             yield (b'--frame\r\n'
                 b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
         else:
-            if count > 15:
+            if count >= 1:
                 cv2.destroyAllWindows()
                 camera1.release()
-                # camera2.release()
+                camera2.release()
 
 @app.route('/pauseplay', methods =['GET'])
 def pause_fn():
@@ -162,7 +182,8 @@ def checkmail():
             co = 0
             return jsonify(response = "User incorrect, try again")
     else:
-        return redirect(url_for('register'))
+        print("yes")
+        return jsonify(url = url_for('register'))
 
 @app.route('/_registerface', methods=['GET'])
 def registerface():
@@ -211,24 +232,31 @@ def startsession(*type):
 
 def detectface(p, global_mail):
     camera1 = cv2.VideoCapture(0)
-    camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
-    camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
-    success, frame = camera1.read()
-    time.sleep(0.2)
+    camera2 = cv2.VideoCapture(1)
+    success1, frame1 = camera1.read()
+    success2, frame2 = camera2.read()
+
+    # camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+    # camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
+    success1, frame1 = camera1.read()   
+    # camera2.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+    # camera2.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
+    success2, frame2 = camera2.read()
+    print(success1,success2)
     camera1.release()
+    camera2.release()
     cv2.destroyAllWindows()
-    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     pathimg1 = path.join(os.getcwd() + "/dataset/" + global_mail + "/1.jpg")
     pathimg2 = path.join(os.getcwd() + "/dataset/" + global_mail + "/2.jpg")
-    img1 = cv2.imread(pathimg1,1)
+    #img1 = cv2.imread(pathimg1,1)
     #img2 = cv2.imread(pathimg2,2)
     try:
-        resultimg  = DeepFace.verify(frame, pathimg1, model_name = "Dlib",detector_backend = backend)
+        resultimg  = DeepFace.verify([[frame1, pathimg1],[frame2,pathimg2]],  model_name = 'Dlib', detector_backend = backend, enforce_detection = False)
+        print(resultimg)
     except Exception:
         return 0
     
-    return 1 if resultimg["verified"] else 0
+    return 1 if resultimg["pair_1"]["verified"] and resultimg["pair_2"]["verified"] else 0
 
 @app.route('/_checkpin',methods=['GET'])
 def checkpin():
@@ -277,29 +305,31 @@ def pi_face_recognition(input_pin):
     global j
     global backend
     global flag
-    print("yes")
     while True:
         # time.sleep(5)
         camera1 = cv2.VideoCapture(0)
-        camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
-        camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
-        camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
-        camera1.set(cv2.CAP_PROP_FPS, 1)
+        camera2 = cv2.VideoCapture(1)
+        
         success1, frame1 = camera1.read() 
-        while not success1:
+        success2, frame2 = camera2.read() 
+        while not success1 or success2:
             success1, frame1 = camera1.read()
+            success2, frame2 = camera2.read()
         framerate1 = camera1.get(5)
+        framerate2 = camera2.get(5)
         camera1.release()
+        camera2.release()
         pathimg1 = path.join(os.getcwd() + "/dataset/" + global_mail + "/1.jpg")
         pathimg2 = path.join(os.getcwd() + "/dataset/" + global_mail + "/2.jpg")
         img1 = cv2.imread(pathimg1,1)
         img2 = cv2.imread(pathimg2,2)
-        try:
-            resultimg  = DeepFace.verify(frame1, pathimg1, model_name = "Dlib",detector_backend = backend)
-        except Exception:
-            resultimg = {'verified':False}
-        print(resultimg['verified'])
-        if not resultimg['verified']:
+        # try:
+        resultimg  = DeepFace.verify([[frame1, pathimg1],[frame2,pathimg2]],  model_name = 'Dlib', detector_backend = backend, enforce_detection = False)
+        print(resultimg)
+        time.sleep(5)
+        # except Exception:
+        #     resultimg = {'pair_1': {'verified':False}, 'pair_2':{'verified':False}}
+        if not (resultimg['pair_1']['verified'] and resultimg['pair_2']['verified']):
             j = j + 1
             print("j",j)
             if j == 10:
