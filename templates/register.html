@@ -96,20 +96,21 @@
                 console.log("Success");
                 count++;
                 }
+                console.log(count)
+                if (count < 1) {
+                    $SCRIPT_ROOT = {{ request.script_root | tojson | safe }};
+                    $.getJSON($SCRIPT_ROOT + '/pauseplay');
+                    document.getElementById('countrem').innerHTML = "Remaining snapshots: " + (1 - count);
+                    document.getElementById('pre_take_buttons').style.display = '';
+                    document.getElementById('post_take_buttons').style.display = 'none';
+                } 
+                else {
+                    document.getElementById('countrem').innerHTML = "Remaining snapshots: " + 0;
+                    document.getElementById('reg').style.display = '';
+                    document.getElementById('my_photo_booth').style.display = 'none';
+                }
             });
-            console.log(count)
-            if (count < 1) {
-                $SCRIPT_ROOT = {{ request.script_root | tojson | safe }};
-                $.getJSON($SCRIPT_ROOT + '/pauseplay');
-                document.getElementById('countrem').innerHTML = "Remaining snapshots: " + (1 - count);
-                document.getElementById('pre_take_buttons').style.display = '';
-                document.getElementById('post_take_buttons').style.display = 'none';
-            } 
-            else {
-                document.getElementById('countrem').innerHTML = "Remaining snapshots: " + 0;
-                document.getElementById('reg').style.display = '';
-                document.getElementById('my_photo_booth').style.display = 'none';
-            }
+            
         }
 
         function register() {

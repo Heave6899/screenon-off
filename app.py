@@ -55,7 +55,7 @@ co = 0
 count = 0
 p = 0
 pause = 0
-
+detectedface = 0
 # manager
 manager = multiprocessing.Manager()
 check_pin = manager.Value(c_wchar_p,'')
@@ -108,10 +108,16 @@ def register():
 def gen_frames():
     camera1 = cv2.VideoCapture(0)
     camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+    width1  = camera1.get(cv2.CAP_PROP_FRAME_WIDTH) 
+    height1 = camera1.get(cv2.CAP_PROP_FRAME_HEIGHT)
     camera2 = cv2.VideoCapture(1)
     camera2.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
+    width2  = camera2.get(cv2.CAP_PROP_FRAME_WIDTH) 
+    height2 = camera2.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    print(height1,width1,height2,width2)
     global pause
     global frame_h
+    global detectedface
     global face_cascade
     print(pause)
     while 1:
@@ -120,29 +126,32 @@ def gen_frames():
             success2, frame2 = camera2.read() 
             gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
             gray2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2GRAY)
-            # faces1 = face_cascade.detectMultiScale(
-            #     gray1,
-            #     scaleFactor=1.3,
-            #     minNeighbors=5,
-            #     minSize=(40, 40),
-            #     flags=cv2.CASCADE_SCALE_IMAGE,
-            #     )
-            # for (x,y,w,h) in faces1:
-            #     cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,0,0),2)
-            #     roi_gray = gray1[y:y+h, x:x+w]
-            #     roi_color = frame1[y:y+h, x:x+w]
-            # faces2 = face_cascade.detectMultiScale(
-            #     gray2,
-            #     scaleFactor=1.3,
-            #     minNeighbors=5,
-            #     minSize=(40, 40),
-            #     flags=cv2.CASCADE_SCALE_IMAGE,
-            #     )
-            # for (x,y,w,h) in faces2:
-            #     cv2.rectangle(frame2,(x,y),(x+w,y+h),(255,0,0),2)
-            #     roi_gray = gray1[y:y+h, x:x+w]
-            #     roi_color = frame1[y:y+h, x:x+w]
-    
+            faces1 = face_cascade.detectMultiScale(
+                gray1,
+                scaleFactor=1.3,
+                minNeighbors=5,
+                minSize=(40, 40),
+                flags=cv2.CASCADE_SCALE_IMAGE,
+                )
+            for (x,y,w,h) in faces1:
+                cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,0,0),2)
+                roi_gray = gray1[y:y+h, x:x+w]
+                roi_color = frame1[y:y+h, x:x+w]
+            faces2 = lower_cascade.detectMultiScale(
+                gray2,
+                scaleFactor=1.3,
+                minNeighbors=5,
+                minSize=(40, 40),
+                flags=cv2.CASCADE_SCALE_IMAGE,
+                )
+            for (x,y,w,h) in faces2:
+                cv2.rectangle(frame2,(x,y),(x+w,y+h),(255,0,0),2)
+                roi_gray = gray1[y:y+h, x:x+w]
+                roi_color = frame1[y:y+h, x:x+w]
+
+            cv2.rectangle(frame1,(int(width1*0.25),int(height1*0.25)),(int(width1*0.75),int(height1*0.75)),(0,0,0),3)
+            cv2.rectangle(frame2,(int(width2*0.25),int(height2*0.25)),(int(width2*0.75),int(height2*0.75)),(0,0,0),3)
+
             frame = cv2.hconcat([frame1, frame2])
             frame_h = [frame1,frame2]
             ret, buffer = cv2.imencode('.jpg', frame)
@@ -150,7 +159,8 @@ def gen_frames():
             yield (b'--frame\r\n'
                 b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
         else:
-            if count >= 1:
+            if count >= 1 or detectedface == 1:
+                print("destroyed")
                 cv2.destroyAllWindows()
                 camera1.release()
                 camera2.release()
@@ -168,6 +178,7 @@ def pause_fn():
 def checkmail():
     global global_mail
     global co
+    print("insidecheckmail")
     global_mail = request.args.get('mail')
     pathx = os.getcwd() + "/dataset/" + global_mail
     if path.exists(os.getcwd() + "/dataset/" + global_mail):
@@ -182,7 +193,6 @@ def checkmail():
             co = 0
             return jsonify(response = "User incorrect, try again")
     else:
-        print("yes")
         return jsonify(url = url_for('register'))
 
 @app.route('/_registerface', methods=['GET'])
@@ -231,32 +241,37 @@ def startsession(*type):
             return jsonify(message = "Error wrong pin", correct = '0')
 
 def detectface(p, global_mail):
-    camera1 = cv2.VideoCapture(0)
-    camera2 = cv2.VideoCapture(1)
-    success1, frame1 = camera1.read()
-    success2, frame2 = camera2.read()
-
-    # camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
-    # camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
-    success1, frame1 = camera1.read()   
-    # camera2.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
-    # camera2.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
-    success2, frame2 = camera2.read()
-    print(success1,success2)
-    camera1.release()
-    camera2.release()
-    cv2.destroyAllWindows()
+    global frame_h
+    global detectedface
+    print("insidedetectface")
+    
     pathimg1 = path.join(os.getcwd() + "/dataset/" + global_mail + "/1.jpg")
     pathimg2 = path.join(os.getcwd() + "/dataset/" + global_mail + "/2.jpg")
+    count = 0
     #img1 = cv2.imread(pathimg1,1)
     #img2 = cv2.imread(pathimg2,2)
-    try:
-        resultimg  = DeepFace.verify([[frame1, pathimg1],[frame2,pathimg2]],  model_name = 'Dlib', detector_backend = backend, enforce_detection = False)
-        print(resultimg)
-    except Exception:
-        return 0
-    
-    return 1 if resultimg["pair_1"]["verified"] and resultimg["pair_2"]["verified"] else 0
+    while 1:
+        count += 1
+        try:
+            if count%10 == 0:
+                frame1 = frame_h[0]
+                frame2 = frame_h[1]
+                resultimg  = DeepFace.verify([[frame1, pathimg1],[frame2,pathimg2]],  model_name = 'Dlib', detector_backend = backend, enforce_detection = False)
+                print(resultimg)
+        except Exception:
+            print("returndetectface")
+            return 0
+        if count%10 == 0:
+            if resultimg["pair_1"]["verified"] and resultimg["pair_2"]["verified"]:
+                detectedface = 1
+                print("returndetectface")
+                return 1  
+            else:
+                if count%10==0:
+                    if count == 300:
+                        print("returndetectface")
+                        return 0 
+
 
 @app.route('/_checkpin',methods=['GET'])
 def checkpin():
