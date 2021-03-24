@@ -54,7 +54,7 @@ check_pin = ''
 co = 0
 count = 0
 p = 0
-
+pause = 0
 # manager
 manager = multiprocessing.Manager()
 check_pin = manager.Value(c_wchar_p,'')
@@ -110,7 +110,7 @@ def gen_frames():
     global face_cascade
     print(pause)
     while 1:
-        if pause == 0 and count < 15:
+        if pause == 0 and count < 1:
             success1, frame1 = camera1.read() 
             gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
             faces = face_cascade.detectMultiScale(
@@ -130,7 +130,7 @@ def gen_frames():
             yield (b'--frame\r\n'
                 b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
         else:
-            if count > 15:
+            if count > 1:
                 cv2.destroyAllWindows()
                 camera1.release()
                 # camera2.release()
@@ -162,7 +162,7 @@ def checkmail():
             co = 0
             return jsonify(response = "User incorrect, try again")
     else:
-        return redirect(url_for('register'))
+        return jsonify(url = url_for('register'))
 
 @app.route('/_registerface', methods=['GET'])
 def registerface():
