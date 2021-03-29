@@ -116,7 +116,7 @@ def gen_frames():
     height2 = camera2.get(cv2.CAP_PROP_FRAME_HEIGHT)
     print(height1,width1,height2,width2)
     global pause
-    global frame_h
+    global frame_h, count
     global detectedface
     global face_cascade
     print(pause)
@@ -164,6 +164,7 @@ def gen_frames():
                 cv2.destroyAllWindows()
                 camera1.release()
                 camera2.release()
+                return 0
 
 @app.route('/pauseplay', methods =['GET'])
 def pause_fn():
@@ -223,9 +224,7 @@ def startsession(*type):
     print(string,name,pin, global_pin)
     message = "Please click on verify pin whenever you resume the session to prevent disruption"
     if string == '0' or '0' in type:
-        p = multiprocessing.Process(
-                    target=pi_face_recognition, args=(check_pin,)
-                )        
+        p = multiprocessing.Process(target=pi_face_recognition, args=(check_pin,))        
         p.start()
         url = url_for('stop')
         return jsonify(url = url, message = message, email = global_mail)
@@ -320,50 +319,48 @@ def pi_face_recognition(input_pin):
     global j
     global backend
     global flag
+    camera1 = cv2.VideoCapture(0)
+    camera2 = cv2.VideoCapture(1)
+    count = 0
+    print("insidepirec")
     while True:
         # time.sleep(5)
-        camera1 = cv2.VideoCapture(0)
-        camera2 = cv2.VideoCapture(1)
-        
         success1, frame1 = camera1.read() 
         success2, frame2 = camera2.read() 
-        while not success1 or success2:
-            success1, frame1 = camera1.read()
-            success2, frame2 = camera2.read()
-        framerate1 = camera1.get(5)
-        framerate2 = camera2.get(5)
-        camera1.release()
-        camera2.release()
+        cv2.imshow("frame1",frame1)
+        cv2.imshow("frame2",frame2)
         pathimg1 = path.join(os.getcwd() + "/dataset/" + global_mail + "/1.jpg")
         pathimg2 = path.join(os.getcwd() + "/dataset/" + global_mail + "/2.jpg")
         img1 = cv2.imread(pathimg1,1)
         img2 = cv2.imread(pathimg2,2)
         # try:
-        resultimg  = DeepFace.verify([[frame1, pathimg1],[frame2,pathimg2]],  model_name = 'Dlib', detector_backend = backend, enforce_detection = False)
-        print(resultimg)
-        time.sleep(5)
+        count = count +1
+        if count%20 == 0:
+            resultimg  = DeepFace.verify([[frame1, pathimg1],[frame2,pathimg2]],  model_name = 'Dlib', detector_backend = backend, enforce_detection = False)
+            print(resultimg)
+            
         # except Exception:
         #     resultimg = {'pair_1': {'verified':False}, 'pair_2':{'verified':False}}
-        if not (resultimg['pair_1']['verified'] and resultimg['pair_2']['verified']):
-            j = j + 1
-            print("j",j)
-            if j == 10:
-                flag = 1
-                # client.publish("iotscreenoff/monitor","OFF, Flag = 0")
-                t1 = multiprocessing.Process(
-                    target=runit,
-                )
-                t1.start()
-        else:
-            j = 0
-            if flag == 1:
-                # subprocess.call(["xset", "-display",":0","dpms","force","on"])
-                flag = 0
-                stopping()
-                flagpin = 0
-                print("Please enter pin")
-                time.sleep(15)
-                pi_pin(input_pin)
+            if not (resultimg['pair_1']['verified'] and resultimg['pair_2']['verified']):
+                j = j + 1
+                print("j",j)
+                if j == 10:
+                    flag = 1
+                    # client.publish("iotscreenoff/monitor","OFF, Flag = 0")
+                    t1 = multiprocessing.Process(
+                        target=runit,
+                    )
+                    t1.start()
+            else:
+                j = 0
+                if flag == 1:
+                    # subprocess.call(["xset", "-display",":0","dpms","force","on"])
+                    flag = 0
+                    stopping()
+                    flagpin = 0
+                    print("Please enter pin")
+                    time.sleep(15)
+                    pi_pin(input_pin)
 
 def pi_pin(input_pin):
     global flagpin
