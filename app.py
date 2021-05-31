@@ -19,7 +19,7 @@ import multiprocessing
 from ctypes import c_wchar_p
 
 import os
-import face_recognition
+# import face_recognition
 import argparse
 import imutils
 import pickle
@@ -106,11 +106,11 @@ def register():
 
 
 def gen_frames():
-    camera1 = cv2.VideoCapture(0)
+    camera1 = cv2.VideoCapture(2)
     camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2)
     width1  = camera1.get(cv2.CAP_PROP_FRAME_WIDTH) 
     height1 = camera1.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    camera2 = cv2.VideoCapture(1)
+    camera2 = cv2.VideoCapture(0)
     camera2.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
     width2  = camera2.get(cv2.CAP_PROP_FRAME_WIDTH) 
     height2 = camera2.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -319,29 +319,36 @@ def pi_face_recognition(input_pin):
     global j
     global backend
     global flag
-    camera1 = cv2.VideoCapture(0)
-    camera2 = cv2.VideoCapture(1)
+    camera1 = cv2.VideoCapture(2)
+    camera2 = cv2.VideoCapture(0)
     count = 0
     print("insidepirec")
     while True:
         # time.sleep(5)
         success1, frame1 = camera1.read() 
         success2, frame2 = camera2.read() 
-        cv2.imshow("frame1",frame1)
-        cv2.imshow("frame2",frame2)
+        # cv2.imshow("frame1",frame1)
+        # cv2.imshow("frame2",frame2)
         pathimg1 = path.join(os.getcwd() + "/dataset/" + global_mail + "/1.jpg")
         pathimg2 = path.join(os.getcwd() + "/dataset/" + global_mail + "/2.jpg")
         img1 = cv2.imread(pathimg1,1)
         img2 = cv2.imread(pathimg2,2)
         # try:
         count = count +1
+        
         if count%20 == 0:
-            resultimg  = DeepFace.verify([[frame1, pathimg1],[frame2,pathimg2]],  model_name = 'Dlib', detector_backend = backend, enforce_detection = False)
-            print(resultimg)
-            
+            print("Yes")
+            try:
+                resultimg1  = DeepFace.verify(frame1, pathimg1,  model_name = 'Dlib', detector_backend = backend, enforce_detection = True)
+                resultimg2  = DeepFace.verify(frame2, pathimg2,  model_name = 'Dlib', detector_backend = backend, enforce_detection = True)
+                print(resultimg1, resultimg2)
+            except Exception:
+                resultimg1  = {'verified': False}
+                resultimg2  = {'verified': False}
+                
         # except Exception:
         #     resultimg = {'pair_1': {'verified':False}, 'pair_2':{'verified':False}}
-            if not (resultimg['pair_1']['verified'] and resultimg['pair_2']['verified']):
+            if not (resultimg1['verified'] and resultimg2['verified']):
                 j = j + 1
                 print("j",j)
                 if j == 10:
@@ -360,10 +367,9 @@ def pi_face_recognition(input_pin):
                     flagpin = 0
                     print("Please enter pin")
                     time.sleep(15)
-                    pi_pin(input_pin)
+                    pi_pin(input_pin, flagpin)
 
-def pi_pin(input_pin):
-    global flagpin
+def pi_pin(input_pin, flagpin):
     global t1
     global check_pin
     global flag
@@ -373,13 +379,15 @@ def pi_pin(input_pin):
     pin = file.readline()
     pin = cipher_suite.decrypt(bytes(pin)).decode('utf-8')
     file.close()
-    print("pipin:",input_pin.value,"pin:",pin)
+    print("pipin:",input_pin.value,"pin:",pin, flagpin)
     if count == 3:
+        print("count 3")
         exit()
     while True:
         if flagpin == 0:
             if pin == input_pin.value:
                 if t1.is_alive():
+                    print("T1 is alive")
                     stopping()
                 flagpin = 1
                 count = 0
@@ -392,11 +400,17 @@ def pi_pin(input_pin):
                         )
                     t1.start()
                     count += 1
+                    print("Count:", count)
+                    return 
+                else:
+                    count += 1
+                    print("Count:", count)
                     return 
             
 def stopping():
     t1.terminate()
     t1.join()
+    print("T1 joined")
     if sys.platform.startswith("linux"):
         subprocess.call(["xset", "-display", ":0", "dpms", "force", "on"])
 
