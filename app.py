@@ -321,7 +321,7 @@ def pi_face_recognition(input_pin):
     global flag
     camera1 = cv2.VideoCapture(2)
     camera2 = cv2.VideoCapture(0)
-    count = 0
+    v = 0
     print("insidepirec")
     while True:
         # time.sleep(5)
@@ -334,17 +334,19 @@ def pi_face_recognition(input_pin):
         img1 = cv2.imread(pathimg1,1)
         img2 = cv2.imread(pathimg2,2)
         # try:
-        count = count +1
+        v = v +1
         
-        if count%20 == 0:
+        if v%20 == 0:
             print("Yes")
             try:
                 resultimg1  = DeepFace.verify(frame1, pathimg1,  model_name = 'Dlib', detector_backend = backend, enforce_detection = True)
-                resultimg2  = DeepFace.verify(frame2, pathimg2,  model_name = 'Dlib', detector_backend = backend, enforce_detection = True)
-                print(resultimg1, resultimg2)
             except Exception:
                 resultimg1  = {'verified': False}
+            try:        
+                resultimg2  = DeepFace.verify(frame2, pathimg2,  model_name = 'Dlib', detector_backend = backend, enforce_detection = True)
+            except Exception:
                 resultimg2  = {'verified': False}
+            print(resultimg1, resultimg2)
                 
         # except Exception:
         #     resultimg = {'pair_1': {'verified':False}, 'pair_2':{'verified':False}}
