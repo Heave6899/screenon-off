@@ -19,7 +19,7 @@ import multiprocessing
 from ctypes import c_wchar_p
 
 import os
-import face_recognition
+# import face_recognition
 import argparse
 import imutils
 import pickle
@@ -210,21 +210,18 @@ def startsession(*type):
             return jsonify(message = "Error wrong pin", correct = '0')
 
 def detectface(p, global_mail):
-    camera1 = cv2.VideoCapture(0)
-    camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
-    camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
-    success, frame = camera1.read()
-    time.sleep(0.2)
-    camera1.release()
-    cv2.destroyAllWindows()
-    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # camera1 = cv2.VideoCapture(0)
+    # camera1.set(cv2.CAP_PROP_FRAME_WIDTH , 352)
+    # camera1.set(cv2.CAP_PROP_FRAME_HEIGHT , 288)
+    # success, frame = camera1.read()
+    # time.sleep(0.2)
+    # camera1.release()
+    # cv2.destroyAllWindows()
+    global frame_h
     pathimg1 = path.join(os.getcwd() + "/dataset/" + global_mail + "/1.jpg")
-    pathimg2 = path.join(os.getcwd() + "/dataset/" + global_mail + "/2.jpg")
     img1 = cv2.imread(pathimg1,1)
-    #img2 = cv2.imread(pathimg2,2)
     try:
-        resultimg  = DeepFace.verify(frame, pathimg1, model_name = "Dlib",detector_backend = backend)
+        resultimg  = DeepFace.verify(frame_h[0], pathimg1, model_name = "Dlib",detector_backend = backend)
     except Exception:
         return 0
     
