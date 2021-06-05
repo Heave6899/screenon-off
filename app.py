@@ -19,7 +19,7 @@ import multiprocessing
 from ctypes import c_wchar_p
 
 import os
-# import face_recognition
+import face_recognition
 import argparse
 import imutils
 import pickle
@@ -28,7 +28,7 @@ import cv2
 import subprocess
 from deepface import DeepFace
 from cryptography.fernet import Fernet
-
+import copy
 #face cascades
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 lower_cascade = cv2.CascadeClassifier('cascade8.xml')
@@ -60,6 +60,21 @@ detectedface = 0
 manager = multiprocessing.Manager()
 check_pin = manager.Value(c_wchar_p,'')
 
+# indices
+indexHD = 0
+indexUSB = 0
+output = (subprocess.Popen( ['v4l2-ctl', '--list-devices'], stdout=subprocess.PIPE ).communicate()[0]).decode("utf-8")
+print(output.split("\n\n"))
+for i in output.split("\n\n"):
+    print('video0' in i and 'USB' in i)
+    if 'video0' in i and 'USB' in i:
+        indexUSB = 0
+        indexHD = 2
+    elif 'video2' in i and 'USB' in i:
+        indexUSB = 2
+        indexHD = 0   
+print(indexUSB, indexHD)  
+
 @app.route('/_photo_cap')
 def photo_cap():
     global global_mail
@@ -71,14 +86,34 @@ def photo_cap():
     image_name2 = "2.jpg"
     if path.exists(os.path.join("dataset",global_mail)):
         cv2.imwrite(os.path.join("dataset",global_mail,image_name1), frame_h[0])
-        cv2.imwrite(os.path.join("dataset",global_mail,image_name2), frame_h[1])
+        faces2 = lower_cascade.detectMultiScale(
+                frame_h[1],
+                scaleFactor=1.3,
+                minNeighbors=5,
+                minSize=(40, 40),
+                flags=cv2.CASCADE_SCALE_IMAGE,
+                )
+        print('face2',faces2)
+        for (x,y,w,h) in faces2:
+                crop_img = frame_h[1][y-10:y+h+10, x-10:x+w+10]
+                cv2.imwrite(os.path.join("dataset",global_mail,image_name2), crop_img)
         count = count + 1 
         print(count)
     else:
         os.mkdir(os.path.join("dataset",global_mail))
         time.sleep(0.3)
         cv2.imwrite(os.path.join("dataset",global_mail,image_name1), frame_h[0])
-        cv2.imwrite(os.path.join("dataset",global_mail,image_name2), frame_h[1])
+        faces2 = lower_cascade.detectMultiScale(
+                frame_h[1],
+                scaleFactor=1.3,
+                minNeighbors=5,
+                minSize=(40, 40),
+                flags=cv2.CASCADE_SCALE_IMAGE,
+                )
+        print('face2',faces2)
+        for (x,y,w,h) in faces2:
+                crop_img = frame_h[1][y+10:y+h+10, x:x+w]
+                cv2.imwrite(os.path.join("dataset",global_mail,image_name2), crop_img)
         count = count + 1 
         print(count)
     response = 'success'
@@ -106,11 +141,12 @@ def register():
 
 
 def gen_frames():
-    camera1 = cv2.VideoCapture(2)
+    global indexHD, indexUSB
+    camera1 = cv2.VideoCapture(indexHD)
     camera1.set(cv2.CAP_PROP_BUFFERSIZE, 2)
     width1  = camera1.get(cv2.CAP_PROP_FRAME_WIDTH) 
     height1 = camera1.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    camera2 = cv2.VideoCapture(0)
+    camera2 = cv2.VideoCapture(indexUSB)
     camera2.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
     width2  = camera2.get(cv2.CAP_PROP_FRAME_WIDTH) 
     height2 = camera2.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -123,43 +159,47 @@ def gen_frames():
     while 1:
         if pause == 0 and count < 1:
             success1, frame1 = camera1.read()
-            success2, frame2 = camera2.read() 
-            gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
-            gray2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2GRAY)
-            faces1 = face_cascade.detectMultiScale(
+            success2, frame2 = camera2.read()
+            frame_h = [copy.deepcopy(frame1),copy.deepcopy(frame2)]
+            try:
+                gray1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
+                faces1 = face_cascade.detectMultiScale(
                 gray1,
                 scaleFactor=1.3,
                 minNeighbors=5,
                 minSize=(40, 40),
                 flags=cv2.CASCADE_SCALE_IMAGE,
                 )
-            for (x,y,w,h) in faces1:
-                cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,0,0),2)
-                roi_gray = gray1[y:y+h, x:x+w]
-                roi_color = frame1[y:y+h, x:x+w]
-            faces2 = lower_cascade.detectMultiScale(
-                gray2,
-                scaleFactor=1.3,
-                minNeighbors=5,
-                minSize=(40, 40),
-                flags=cv2.CASCADE_SCALE_IMAGE,
-                )
-            for (x,y,w,h) in faces2:
-                cv2.rectangle(frame2,(x,y),(x+w,y+h),(255,0,0),2)
-                roi_gray = gray1[y:y+h, x:x+w]
-                roi_color = frame1[y:y+h, x:x+w]
-
+                for (x,y,w,h) in faces1:
+                    cv2.rectangle(frame1,(x,y),(x+w,y+h),(255,0,0),2)
+            except:
+                success1, frame1 = camera1.read()
+            try:       
+                gray2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2GRAY)
+            
+                faces2 = lower_cascade.detectMultiScale(
+                    gray2,
+                    scaleFactor=1.3,
+                    minNeighbors=5,
+                    minSize=(40, 40),
+                    flags=cv2.CASCADE_SCALE_IMAGE,
+                    )
+                for (x,y,w,h) in faces2:
+                    cv2.rectangle(frame2,(x,y),(x+w,y+h),(255,0,0),2)
+            except:
+                success2, frame2 = camera2.read()
             cv2.rectangle(frame1,(int(width1*0.25),int(height1*0.25)),(int(width1*0.75),int(height1*0.75)),(0,0,0),3)
             cv2.rectangle(frame2,(int(width2*0.25),int(height2*0.25)),(int(width2*0.75),int(height2*0.75)),(0,0,0),3)
 
             frame = cv2.hconcat([frame1, frame2])
-            frame_h = [frame1,frame2]
+            
             ret, buffer = cv2.imencode('.jpg', frame)
             frame = buffer.tobytes()
             yield (b'--frame\r\n'
                 b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
         else:
             if count >= 1 or detectedface == 1:
+                count = 0
                 print("destroyed")
                 cv2.destroyAllWindows()
                 camera1.release()
@@ -318,9 +358,9 @@ def pi_face_recognition(input_pin):
     global t1
     global j
     global backend
-    global flag
-    camera1 = cv2.VideoCapture(2)
-    camera2 = cv2.VideoCapture(0)
+    global flag, indexHD, indexUSB
+    camera1 = cv2.VideoCapture(indexHD)
+    camera2 = cv2.VideoCapture(indexUSB)
     v = 0
     print("insidepirec")
     while True:
@@ -339,11 +379,11 @@ def pi_face_recognition(input_pin):
         if v%20 == 0:
             print("Yes")
             try:
-                resultimg1  = DeepFace.verify(frame1, pathimg1,  model_name = 'Dlib', detector_backend = backend, enforce_detection = True)
+                resultimg1  = DeepFace.verify(frame1, pathimg1,  model_name = 'Dlib', detector_backend = backend, enforce_detection = True, distance_metric='euclidean_l2')
             except Exception:
                 resultimg1  = {'verified': False}
             try:        
-                resultimg2  = DeepFace.verify(frame2, pathimg2,  model_name = 'Dlib', detector_backend = backend, enforce_detection = True)
+                resultimg2  = DeepFace.verify(frame2, pathimg2,  model_name = 'ArcFace', detector_backend = backend, enforce_detection = False, distance_metric='euclidean_l2')
             except Exception:
                 resultimg2  = {'verified': False}
             print(resultimg1, resultimg2)
