@@ -112,7 +112,7 @@ def photo_cap():
                 )
         print('face2',faces2)
         for (x,y,w,h) in faces2:
-                crop_img = frame_h[1][y+10:y+h+10, x:x+w]
+                crop_img = frame_h[1][y+10:y+h+10, x-20:x+w+20]
                 cv2.imwrite(os.path.join("dataset",global_mail,image_name2), crop_img)
         count = count + 1 
         print(count)
@@ -200,6 +200,8 @@ def gen_frames():
         else:
             if count >= 1 or detectedface == 1:
                 count = 0
+                pause  = 0
+                detectedface = 0
                 print("destroyed")
                 cv2.destroyAllWindows()
                 camera1.release()
@@ -382,10 +384,18 @@ def pi_face_recognition(input_pin):
                 resultimg1  = DeepFace.verify(frame1, pathimg1,  model_name = 'Dlib', detector_backend = backend, enforce_detection = True, distance_metric='euclidean_l2')
             except Exception:
                 resultimg1  = {'verified': False}
-            try:        
-                resultimg2  = DeepFace.verify(frame2, pathimg2,  model_name = 'ArcFace', detector_backend = backend, enforce_detection = False, distance_metric='euclidean_l2')
-            except Exception:
-                resultimg2  = {'verified': False}
+            # try:        
+            resultimg2  = DeepFace.verify(frame2, pathimg2,  model_name = 'Facenet', detector_backend = 'dlib', enforce_detection = False, distance_metric='euclidean_l2')
+            # except Exception:
+                # resultimg2  = {'verified': False}
+                # print(Exception.)
+                # try: 
+                #     resultimg2  = DeepFace.verify(frame2, pathimg2,  model_name = 'ArcFace', detector_backend = backend, enforce_detection = False, distance_metric='euclidean_l2')
+                # except:
+                #     try:
+                        
+                #     except:
+                        
             print(resultimg1, resultimg2)
                 
         # except Exception:
